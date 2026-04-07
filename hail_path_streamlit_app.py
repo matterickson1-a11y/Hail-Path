@@ -85,6 +85,7 @@ def init_state():
         "review_notes": "",
         "manual_final_route": "green_pdr",
         "do_reset": False,
+        "uploader_key": 0,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -102,6 +103,7 @@ def apply_pending_reset():
         st.session_state["notes"] = ""
         st.session_state["review_notes"] = ""
         st.session_state["manual_final_route"] = "green_pdr"
+        st.session_state["uploader_key"] += 1
         st.session_state["do_reset"] = False
 
 def queue_reset():
@@ -389,21 +391,33 @@ if Path("logo.png").exists():
 st.caption("All-panel hail triage with AI suggestions, export, print/share, reset, and retraining feedback buckets")
 
 # =========================================================
-# SIDEBAR
+# INTAKE FORM ON MAIN PAGE (PHONE FRIENDLY)
 # =========================================================
-with st.sidebar:
-    st.header("Vehicle / Claim Info")
-    vehicle_claim_id = st.text_input("Vehicle / Claim ID", key="vehicle_claim_id")
-    vin = st.text_input("VIN", key="vin")
-    year = st.text_input("Year", key="year")
-    make = st.text_input("Make", key="make")
-    model_name = st.text_input("Model", key="model")
-    color = st.text_input("Color", key="color")
-    customer_insured_name = st.text_input("Customer / Insured Name", key="customer_insured_name")
-    notes = st.text_area("Notes", height=120, key="notes")
+st.subheader("Vehicle / Claim Intake")
 
-    st.markdown("---")
-    st.subheader("AI Model")
+i1, i2 = st.columns(2)
+with i1:
+    vehicle_claim_id = st.text_input("Vehicle / Claim ID", key="vehicle_claim_id")
+with i2:
+    vin = st.text_input("VIN", key="vin")
+
+i3, i4, i5 = st.columns(3)
+with i3:
+    year = st.text_input("Year", key="year")
+with i4:
+    make = st.text_input("Make", key="make")
+with i5:
+    model_name = st.text_input("Model", key="model")
+
+i6, i7 = st.columns(2)
+with i6:
+    color = st.text_input("Color", key="color")
+with i7:
+    customer_insured_name = st.text_input("Customer / Insured Name", key="customer_insured_name")
+
+notes = st.text_area("Notes", height=100, key="notes")
+
+with st.expander("AI Model Info"):
     st.write(model_info)
 
 # =========================================================
@@ -412,7 +426,8 @@ with st.sidebar:
 uploaded_files = st.file_uploader(
     "Upload vehicle hail photos",
     type=["jpg", "jpeg", "png", "webp"],
-    accept_multiple_files=True
+    accept_multiple_files=True,
+    key="photo_uploader_" + str(st.session_state["uploader_key"])
 )
 
 if uploaded_files:
@@ -621,4 +636,4 @@ if uploaded_files:
 
                     st.markdown("---")
 else:
-    st.info("Upload a vehicle photo set to begin triage.")
+    st.info("Upload vehicle hail photos to begin triage.")
