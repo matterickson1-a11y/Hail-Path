@@ -12,12 +12,31 @@ from PIL import Image
 from torchvision import models, transforms
 
 st.set_page_config(page_title="HAIL Path", layout="wide")
-st.image("logo.png", width=300)
+
+# =========================================================
+# CLEAN UI
+# =========================================================
+st.markdown(
+    """
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    .block-container {padding-top: 1rem;}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# =========================================================
+# CONFIG
+# =========================================================
 EXPORT_FILE = Path("carrier_triage_results.csv")
 FEEDBACK_DIR = Path("retraining_feedback")
 
 ROUTE_MODEL_CANDIDATES = [
     Path("models/hail_path_triage_STABLE_20260317.pth"),
+    Path("models/hail_path_triage_STABLE_20260320_feedback.pth"),
     Path("models/hail_path_triage_pilot.pth"),
     Path("models/hail_path_triage.pth"),
 ]
@@ -50,7 +69,9 @@ PANEL_KEYWORDS = [
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-
+# =========================================================
+# STATE
+# =========================================================
 def init_state():
     defaults = {
         "vehicle_claim_id": "",
@@ -69,7 +90,6 @@ def init_state():
         if key not in st.session_state:
             st.session_state[key] = value
 
-
 def apply_pending_reset():
     if st.session_state.get("do_reset", False):
         st.session_state["vehicle_claim_id"] = ""
@@ -84,11 +104,12 @@ def apply_pending_reset():
         st.session_state["manual_final_route"] = "green_pdr"
         st.session_state["do_reset"] = False
 
-
 def queue_reset():
     st.session_state["do_reset"] = True
 
-
+# =========================================================
+# HELPERS
+# =========================================================
 def detect_panel(filename):
     name = filename.lower()
     for panel, keywords in PANEL_KEYWORDS:
@@ -97,42 +118,29 @@ def detect_panel(filename):
                 return panel
     return "other"
 
-
 def get_route_model_path():
     for p in ROUTE_MODEL_CANDIDATES:
         if p.exists():
             return p
     return None
 
-
 def build_model(num_classes):
     model = models.resnet18(weights=None)
     model.fc = nn.Linear(model.fc.in_features, num_classes)
     return model
 
-
 def normalize_class_names(value):
     if value is None:
         return list(CLASS_NAMES_FALLBACK)
-
     if isinstance(value, list):
-        if len(value) == 0:
-            return list(CLASS_NAMES_FALLBACK)
-        return value
-
+        return value if value else list(CLASS_NAMES_FALLBACK)
     if isinstance(value, tuple):
-        if len(value) == 0:
-            return list(CLASS_NAMES_FALLBACK)
-        return list(value)
-
+        return list(value) if value else list(CLASS_NAMES_FALLBACK)
     try:
         converted = list(value)
-        if len(converted) == 0:
-            return list(CLASS_NAMES_FALLBACK)
-        return converted
+        return converted if converted else list(CLASS_NAMES_FALLBACK)
     except Exception:
         return list(CLASS_NAMES_FALLBACK)
-
 
 def load_route_model():
     model_path = get_route_model_path()
@@ -149,11 +157,9 @@ def load_route_model():
         maybe_image_size = checkpoint.get("image_size", 224)
         if isinstance(maybe_image_size, int) and maybe_image_size > 0:
             image_size = maybe_image_size
-
         model = build_model(len(class_names))
         model.load_state_dict(checkpoint["model_state_dict"])
     else:
-        class_names = list(CLASS_NAMES_FALLBACK)
         model = build_model(len(class_names))
         model.load_state_dict(checkpoint)
 
@@ -166,7 +172,6 @@ def load_route_model():
     ])
 
     return model, class_names, transform, str(model_path)
-
 
 def predict_image(image, model, class_names, transform):
     img = image.convert("RGB")
@@ -186,18 +191,11 @@ def predict_image(image, model, class_names, transform):
 
     return pred_class, confidence, prob_map
 
-
 def aggregate_vehicle_prediction(all_results, class_names):
-    if not all_results:
+    if not all_results or not class_names:
         return None, None, {}
 
-    if not class_names:
-        return None, None, {}
-
-    totals = {}
-    for name in class_names:
-        totals[name] = 0.0
-
+    totals = {name: 0.0 for name in class_names}
     total_weight = 0.0
 
     for item in all_results:
@@ -217,126 +215,6 @@ def aggregate_vehicle_prediction(all_results, class_names):
     best_conf = averages[best_class]
 
     return best_class, best_conf, averages
-
-
-def make_print_summary(data):
-    lines = []
-    lines.append("HAIL PATH TRIAGE SUMMARY")
-    lines.append("")
-    lines.append("Timestamp: " + data["timestamp"])
-    lines.append("Vehicle / Claim ID: " + data["vehicle_claim_id"])
-    lines.append("VIN: " + data["vin"])
-    lines.append("Year: " + data["year"])
-    lines.append("Make: " + data["make"])
-    lines.append("Model: " + data["model"])
-    lines.append("Color: " + data["color"])
-    lines.append("Customer / Insured Name: " + data["customer_insured_name"])
-    lines.append("")
-    lines.append("AI Model: " + data["model_file"])
-    lines.append("AI Vehicle Route: " + data["ai_vehicle_route"])
-    lines.append("AI Vehicle Confidence: " + data["ai_vehicle_confidence"])
-    lines.append("Manual Final Route: " + data["manual_final_route"])
-    lines.append("")
-    lines.append("Per-Image Predictions:")
-    for row in data["image_rows"]:
-        lines.append(
-            "  {} | {} | {} | {}".format(
-                row["filename"],
-                row["panel"],
-                row["pred_class"],
-                row["confidence_text"]
-            )
-        )
-    return "\n".join(lines)
-
-
-def make_print_html(data):
-    rows_html = []
-    for row in data["image_rows"]:
-        rows_html.append(
-            "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(
-                html.escape(row["filename"]),
-                html.escape(row["panel"]),
-                html.escape(row["pred_class"]),
-                html.escape(row["confidence_text"]),
-            )
-        )
-
-    html_doc = """
-    <html>
-    <head>
-        <title>HAIL Path Triage Summary</title>
-        <style>
-            body {{ font-family: Arial, sans-serif; margin: 24px; color: #111; }}
-            h1, h2 {{ margin-bottom: 8px; }}
-            .section {{ margin-top: 20px; }}
-            table {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
-            th, td {{ border: 1px solid #ccc; padding: 8px; text-align: left; font-size: 13px; }}
-            th {{ background: #f2f2f2; }}
-            .grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }}
-            .box {{ border: 1px solid #ddd; padding: 10px; }}
-        </style>
-    </head>
-    <body>
-        <h1>HAIL Path Triage Summary</h1>
-        <div class="section grid">
-            <div class="box">
-                <strong>Timestamp:</strong> {timestamp}<br>
-                <strong>Vehicle / Claim ID:</strong> {vehicle_claim_id}<br>
-                <strong>VIN:</strong> {vin}<br>
-                <strong>Year:</strong> {year}<br>
-                <strong>Make:</strong> {make}<br>
-                <strong>Model:</strong> {model}<br>
-                <strong>Color:</strong> {color}<br>
-                <strong>Customer / Insured Name:</strong> {customer_insured_name}<br>
-            </div>
-            <div class="box">
-                <strong>AI Model:</strong> {model_file}<br>
-                <strong>AI Vehicle Route:</strong> {ai_vehicle_route}<br>
-                <strong>AI Vehicle Confidence:</strong> {ai_vehicle_confidence}<br>
-                <strong>Manual Final Route:</strong> {manual_final_route}<br>
-            </div>
-        </div>
-        <div class="section">
-            <h2>Reviewer Notes</h2>
-            <div class="box">{review_notes}</div>
-        </div>
-        <div class="section">
-            <h2>Per-Image Predictions</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Filename</th>
-                        <th>Panel</th>
-                        <th>Prediction</th>
-                        <th>Confidence</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {rows_html}
-                </tbody>
-            </table>
-        </div>
-    </body>
-    </html>
-    """.format(
-        timestamp=html.escape(data["timestamp"]),
-        vehicle_claim_id=html.escape(data["vehicle_claim_id"]),
-        vin=html.escape(data["vin"]),
-        year=html.escape(data["year"]),
-        make=html.escape(data["make"]),
-        model=html.escape(data["model"]),
-        color=html.escape(data["color"]),
-        customer_insured_name=html.escape(data["customer_insured_name"]),
-        model_file=html.escape(data["model_file"]),
-        ai_vehicle_route=html.escape(data["ai_vehicle_route"]),
-        ai_vehicle_confidence=html.escape(data["ai_vehicle_confidence"]),
-        manual_final_route=html.escape(data["manual_final_route"]),
-        review_notes=html.escape(data["review_notes"]).replace("\n", "<br>"),
-        rows_html="".join(rows_html),
-    )
-    return html_doc
-
 
 def save_result(row):
     file_exists = EXPORT_FILE.exists()
@@ -371,7 +249,6 @@ def save_result(row):
             writer.writeheader()
         writer.writerow(row)
 
-
 def save_feedback_image(item, corrected_class):
     FEEDBACK_DIR.mkdir(exist_ok=True)
     target_dir = FEEDBACK_DIR / corrected_class
@@ -390,15 +267,130 @@ def save_feedback_image(item, corrected_class):
     item["image"].save(target_path)
     return str(target_path)
 
+def make_print_summary(data):
+    lines = []
+    lines.append("HAIL PATH TRIAGE SUMMARY")
+    lines.append("")
+    lines.append("Timestamp: " + data["timestamp"])
+    lines.append("Vehicle / Claim ID: " + data["vehicle_claim_id"])
+    lines.append("VIN: " + data["vin"])
+    lines.append("Year: " + data["year"])
+    lines.append("Make: " + data["make"])
+    lines.append("Model: " + data["model"])
+    lines.append("Color: " + data["color"])
+    lines.append("Customer / Insured Name: " + data["customer_insured_name"])
+    lines.append("")
+    lines.append("AI Model: " + data["model_file"])
+    lines.append("AI Vehicle Route: " + data["ai_vehicle_route"])
+    lines.append("AI Vehicle Confidence: " + data["ai_vehicle_confidence"])
+    lines.append("Manual Final Route: " + data["manual_final_route"])
+    lines.append("")
+    lines.append("Reviewer Notes:")
+    lines.append(data["review_notes"])
+    lines.append("")
+    lines.append("Per-Image Predictions:")
+    for row in data["image_rows"]:
+        lines.append(
+            "  {} | {} | {} | {}".format(
+                row["filename"],
+                row["panel"],
+                row["pred_class"],
+                row["confidence_text"]
+            )
+        )
+    return "\n".join(lines)
 
+def make_print_html(data):
+    rows_html = []
+    for row in data["image_rows"]:
+        rows_html.append(
+            "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(
+                html.escape(row["filename"]),
+                html.escape(row["panel"]),
+                html.escape(row["pred_class"]),
+                html.escape(row["confidence_text"]),
+            )
+        )
+
+    return """
+    <html>
+    <head>
+        <title>HAIL Path Triage Summary</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 24px; color: #111; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
+            th, td {{ border: 1px solid #ccc; padding: 8px; text-align: left; font-size: 13px; }}
+            th {{ background: #f2f2f2; }}
+        </style>
+    </head>
+    <body>
+        <h1>HAIL Path Triage Summary</h1>
+        <p><strong>Timestamp:</strong> {timestamp}</p>
+        <p><strong>Vehicle / Claim ID:</strong> {vehicle_claim_id}</p>
+        <p><strong>VIN:</strong> {vin}</p>
+        <p><strong>Year:</strong> {year}</p>
+        <p><strong>Make:</strong> {make}</p>
+        <p><strong>Model:</strong> {model}</p>
+        <p><strong>Color:</strong> {color}</p>
+        <p><strong>Customer / Insured Name:</strong> {customer_insured_name}</p>
+        <p><strong>AI Model:</strong> {model_file}</p>
+        <p><strong>AI Vehicle Route:</strong> {ai_vehicle_route}</p>
+        <p><strong>AI Vehicle Confidence:</strong> {ai_vehicle_confidence}</p>
+        <p><strong>Manual Final Route:</strong> {manual_final_route}</p>
+        <p><strong>Reviewer Notes:</strong><br>{review_notes}</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Filename</th>
+                    <th>Panel</th>
+                    <th>Prediction</th>
+                    <th>Confidence</th>
+                </tr>
+            </thead>
+            <tbody>
+                {rows_html}
+            </tbody>
+        </table>
+    </body>
+    </html>
+    """.format(
+        timestamp=html.escape(data["timestamp"]),
+        vehicle_claim_id=html.escape(data["vehicle_claim_id"]),
+        vin=html.escape(data["vin"]),
+        year=html.escape(data["year"]),
+        make=html.escape(data["make"]),
+        model=html.escape(data["model"]),
+        color=html.escape(data["color"]),
+        customer_insured_name=html.escape(data["customer_insured_name"]),
+        model_file=html.escape(data["model_file"]),
+        ai_vehicle_route=html.escape(data["ai_vehicle_route"]),
+        ai_vehicle_confidence=html.escape(data["ai_vehicle_confidence"]),
+        manual_final_route=html.escape(data["manual_final_route"]),
+        review_notes=html.escape(data["review_notes"]).replace("\n", "<br>"),
+        rows_html="".join(rows_html),
+    )
+
+# =========================================================
+# APP INIT
+# =========================================================
 init_state()
 apply_pending_reset()
 route_model, class_names, route_transform, model_info = load_route_model()
 class_names = normalize_class_names(class_names)
 
-st.title("HAIL Path")
+# =========================================================
+# HEADER
+# =========================================================
+if Path("logo.png").exists():
+    c1, c2, c3 = st.columns([1, 2, 1])
+    with c2:
+        st.image("logo.png", width=420)
+
 st.caption("All-panel hail triage with AI suggestions, export, print/share, reset, and retraining feedback buckets")
 
+# =========================================================
+# SIDEBAR
+# =========================================================
 with st.sidebar:
     st.header("Vehicle / Claim Info")
     vehicle_claim_id = st.text_input("Vehicle / Claim ID", key="vehicle_claim_id")
@@ -414,6 +406,9 @@ with st.sidebar:
     st.subheader("AI Model")
     st.write(model_info)
 
+# =========================================================
+# MAIN
+# =========================================================
 uploaded_files = st.file_uploader(
     "Upload vehicle hail photos",
     type=["jpg", "jpeg", "png", "webp"],
@@ -465,7 +460,6 @@ if uploaded_files:
         else:
             st.write("**AI Route Suggestion:**", ai_vehicle_route)
             st.write("**AI Confidence:**", "{:.2%}".format(ai_vehicle_confidence))
-
             if ai_averages and class_names:
                 st.write("**Weighted Class Averages**")
                 for class_name in class_names:
@@ -481,11 +475,7 @@ if uploaded_files:
             key="manual_final_route"
         )
 
-        review_notes = st.text_area(
-            "Reviewer Notes",
-            height=140,
-            key="review_notes"
-        )
+        review_notes = st.text_area("Reviewer Notes", height=140, key="review_notes")
 
         st.markdown("---")
         st.subheader("Panel Counts")
