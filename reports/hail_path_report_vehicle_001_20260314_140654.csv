@@ -1,0 +1,14 @@
+vehicle_id,vehicle_001
+vin,
+year,
+make,
+model,
+color,
+customer_or_insured,
+notes,
+final_route,GREEN - PDR Candidate
+average_confidence,94.96%
+reason,All analyzed panels were green.
+
+slot,filename,image_route,top_confidence,green_pdr,yellow_review,red_conventional,red_minus_green,decision_reason
+Roof,Roof_Photo 19.jpg,GREEN - PDR Candidate,94.96%,94.96%,5.01%,0.02%,-94.94%,"Top class accepted (green_pdr, 94.96%)."

@@ -1,0 +1,166 @@
+
+    <!doctype html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>HAIL Path Report</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 30px; color: #111; }
+            h1, h2 { margin-bottom: 8px; }
+            .meta, .summary { margin-bottom: 22px; }
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+            th { background: #f3f3f3; }
+            .route { font-size: 20px; font-weight: bold; margin: 10px 0; }
+        </style>
+    </head>
+    <body>
+        <h1>HAIL Path Triage Report</h1>
+        <div class="meta">
+            <p><strong>Vehicle / Claim ID:</strong> vehicle_001</p>
+            <p><strong>VIN:</strong> </p>
+            <p><strong>Year:</strong> </p>
+            <p><strong>Make:</strong> </p>
+            <p><strong>Model:</strong> </p>
+            <p><strong>Color:</strong> </p>
+            <p><strong>Customer / Insured:</strong> </p>
+            <p><strong>Notes:</strong> </p>
+        </div>
+        <div class="summary">
+            <h2>Final Vehicle Route</h2>
+            <div class="route">RED - Likely Conventional Repair</div>
+            <p><strong>Average Confidence:</strong> 75.73%</p>
+            <p><strong>Reason:</strong> At least one panel flagged red, so the vehicle routes to conventional repair.</p>
+            <p><strong>Bucket Counts:</strong> Green 2 | Yellow 4 | Red 4</p>
+        </div>
+        <h2>Photo-by-Photo Triage</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Slot</th>
+                    <th>Filename</th>
+                    <th>Image Route</th>
+                    <th>Top Confidence</th>
+                    <th>Green</th>
+                    <th>Yellow</th>
+                    <th>Red</th>
+                    <th>Decision Reason</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+        <tr>
+            <td>Roof</td>
+            <td>Roof_Photo 17.jpg</td>
+            <td>YELLOW - Manual Review Required</td>
+            <td>77.86%</td>
+            <td>1.61%</td>
+            <td>77.86%</td>
+            <td>20.53%</td>
+            <td>Top class accepted (yellow_review, 77.86%).</td>
+        </tr>
+        
+        <tr>
+            <td>Left Roof Rail</td>
+            <td>Left_Roof_Rail_Photo 05.jpg</td>
+            <td>RED - Likely Conventional Repair</td>
+            <td>81.41%</td>
+            <td>0.04%</td>
+            <td>18.55%</td>
+            <td>81.41%</td>
+            <td>Red override triggered (81.41%).</td>
+        </tr>
+        
+        <tr>
+            <td>Right Roof Rail</td>
+            <td>Right_Roof_Rail_Photo 07.jpg</td>
+            <td>RED - Likely Conventional Repair</td>
+            <td>99.68%</td>
+            <td>0.23%</td>
+            <td>0.09%</td>
+            <td>99.68%</td>
+            <td>Red override triggered (99.68%).</td>
+        </tr>
+        
+        <tr>
+            <td>Hood</td>
+            <td>Hood_Photo 01.jpg</td>
+            <td>GREEN - PDR Candidate</td>
+            <td>65.80%</td>
+            <td>65.80%</td>
+            <td>0.02%</td>
+            <td>34.18%</td>
+            <td>Top class accepted (green_pdr, 65.80%).</td>
+        </tr>
+        
+        <tr>
+            <td>Left Fender</td>
+            <td>Left_Fender_Photo 02.jpg</td>
+            <td>RED - Likely Conventional Repair</td>
+            <td>89.91%</td>
+            <td>9.94%</td>
+            <td>0.15%</td>
+            <td>89.91%</td>
+            <td>Red override triggered (89.91%).</td>
+        </tr>
+        
+        <tr>
+            <td>Right Fender</td>
+            <td>Right_Fender_Right Fender.jpg</td>
+            <td>YELLOW - Manual Review Required</td>
+            <td>88.44%</td>
+            <td>4.68%</td>
+            <td>88.44%</td>
+            <td>6.88%</td>
+            <td>Top class accepted (yellow_review, 88.44%).</td>
+        </tr>
+        
+        <tr>
+            <td>Decklid</td>
+            <td>Decklid_Photo 09.jpg</td>
+            <td>RED - Likely Conventional Repair</td>
+            <td>63.85%</td>
+            <td>26.70%</td>
+            <td>9.45%</td>
+            <td>63.85%</td>
+            <td>Red override triggered (63.85%).</td>
+        </tr>
+        
+        <tr>
+            <td>Left Quarter</td>
+            <td>Left_Quarter_Left QP.jpg</td>
+            <td>GREEN - PDR Candidate</td>
+            <td>67.66%</td>
+            <td>67.66%</td>
+            <td>10.46%</td>
+            <td>21.87%</td>
+            <td>Top class accepted (green_pdr, 67.66%).</td>
+        </tr>
+        
+        <tr>
+            <td>Right Quarter</td>
+            <td>Right_Quarter_Right QP.jpg</td>
+            <td>YELLOW - Manual Review Required</td>
+            <td>54.89%</td>
+            <td>54.89%</td>
+            <td>42.29%</td>
+            <td>2.82%</td>
+            <td>Confidence below yellow threshold (54.89%).</td>
+        </tr>
+        
+        <tr>
+            <td>Left Rear Door</td>
+            <td>Left_Rear_Door_Photo 12.jpg</td>
+            <td>YELLOW - Manual Review Required</td>
+            <td>67.80%</td>
+            <td>0.01%</td>
+            <td>67.80%</td>
+            <td>32.20%</td>
+            <td>Top class accepted (yellow_review, 67.80%).</td>
+        </tr>
+        
+            </tbody>
+        </table>
+    </body>
+    </html>
+    

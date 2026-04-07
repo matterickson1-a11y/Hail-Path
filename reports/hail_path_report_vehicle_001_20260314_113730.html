@@ -1,0 +1,124 @@
+
+    <!doctype html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>HAIL Path Report</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 30px; color: #111; }
+            h1, h2 { margin-bottom: 8px; }
+            .meta, .summary { margin-bottom: 22px; }
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+            th { background: #f3f3f3; }
+            .route { font-size: 20px; font-weight: bold; margin: 10px 0; }
+        </style>
+    </head>
+    <body>
+        <h1>HAIL Path Triage Report</h1>
+        <div class="meta">
+            <p><strong>Vehicle / Claim ID:</strong> vehicle_001</p>
+            <p><strong>Year:</strong> </p>
+            <p><strong>Make:</strong> </p>
+            <p><strong>Model:</strong> </p>
+            <p><strong>Color:</strong> </p>
+            <p><strong>Customer / Insured:</strong> </p>
+            <p><strong>Notes:</strong> </p>
+        </div>
+        <div class="summary">
+            <h2>Final Vehicle Route</h2>
+            <div class="route">RED - Likely Conventional Repair</div>
+            <p><strong>Average Confidence:</strong> 69.80%</p>
+            <p><strong>Reason:</strong> At least one panel flagged red, so the vehicle routes to conventional repair.</p>
+            <p><strong>Bucket Counts:</strong> Green 0 | Yellow 5 | Red 2</p>
+        </div>
+        <h2>Photo-by-Photo Triage</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Slot</th>
+                    <th>Filename</th>
+                    <th>Image Route</th>
+                    <th>Confidence</th>
+                    <th>Green</th>
+                    <th>Yellow</th>
+                    <th>Red</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+        <tr>
+            <td>Roof</td>
+            <td>Roof_Photo 10.jpg</td>
+            <td>YELLOW - Manual Review Required</td>
+            <td>50.21%</td>
+            <td>25.82%</td>
+            <td>23.97%</td>
+            <td>50.21%</td>
+        </tr>
+        
+        <tr>
+            <td>Right Roof Rail</td>
+            <td>Right_Roof_Rail_Photo 07.jpg</td>
+            <td>RED - Likely Conventional Repair</td>
+            <td>90.19%</td>
+            <td>0.01%</td>
+            <td>9.80%</td>
+            <td>90.19%</td>
+        </tr>
+        
+        <tr>
+            <td>Hood</td>
+            <td>Hood_Photo 01.jpg</td>
+            <td>YELLOW - Manual Review Required</td>
+            <td>66.62%</td>
+            <td>0.00%</td>
+            <td>66.62%</td>
+            <td>33.38%</td>
+        </tr>
+        
+        <tr>
+            <td>Left Quarter</td>
+            <td>Left_Quarter_Left QP.jpg</td>
+            <td>YELLOW - Manual Review Required</td>
+            <td>90.86%</td>
+            <td>1.06%</td>
+            <td>90.86%</td>
+            <td>8.08%</td>
+        </tr>
+        
+        <tr>
+            <td>Right Quarter</td>
+            <td>Right_Quarter_Right QP.jpg</td>
+            <td>YELLOW - Manual Review Required</td>
+            <td>61.71%</td>
+            <td>19.25%</td>
+            <td>19.04%</td>
+            <td>61.71%</td>
+        </tr>
+        
+        <tr>
+            <td>Left Front Door</td>
+            <td>Left_Front_Door_Left Side.jpg</td>
+            <td>RED - Likely Conventional Repair</td>
+            <td>76.23%</td>
+            <td>20.34%</td>
+            <td>3.43%</td>
+            <td>76.23%</td>
+        </tr>
+        
+        <tr>
+            <td>Right Rear Door</td>
+            <td>Right_Rear_Door_Right Side.jpg</td>
+            <td>YELLOW - Manual Review Required</td>
+            <td>52.78%</td>
+            <td>8.18%</td>
+            <td>39.03%</td>
+            <td>52.78%</td>
+        </tr>
+        
+            </tbody>
+        </table>
+    </body>
+    </html>
+    

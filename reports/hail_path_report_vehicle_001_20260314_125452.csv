@@ -1,0 +1,22 @@
+vehicle_id,vehicle_001
+vin,
+year,
+make,
+model,
+color,
+customer_or_insured,
+notes,
+final_route,RED - Likely Conventional Repair
+average_confidence,72.05%
+reason,"At least one panel flagged red, so the vehicle routes to conventional repair."
+
+slot,filename,image_route,top_confidence,green_pdr,yellow_review,red_conventional,red_threshold_used,decision_reason
+Roof,Roof_Photo 10.jpg,YELLOW - Manual Review Required,50.85%,0.00%,50.85%,49.14%,70%,Confidence below yellow threshold (50.85%).
+Left Roof Rail,Left_Roof_Rail_Photo 04.jpg,YELLOW - Manual Review Required,58.40%,33.75%,7.85%,58.40%,85%,Confidence below yellow threshold (58.40%).
+Right Roof Rail,Right_Roof_Rail_Photo 10.jpg,YELLOW - Manual Review Required,50.85%,0.00%,50.85%,49.14%,85%,Confidence below yellow threshold (50.85%).
+Hood,Hood_Photo 01.jpg,RED - Likely Conventional Repair,99.53%,0.03%,0.44%,99.53%,70%,Red override triggered (99.53%) using threshold 70%.
+Left Fender,Left_Fender_Left Fender.jpg,YELLOW - Manual Review Required,88.59%,0.06%,88.59%,11.35%,70%,"Top class accepted (yellow_review, 88.59%)."
+Right Fender,Right_Fender_Left Front.jpg,YELLOW - Manual Review Required,58.66%,0.03%,41.32%,58.66%,70%,Confidence below yellow threshold (58.66%).
+Decklid,Decklid_Photo 08.jpg,YELLOW - Manual Review Required,72.14%,0.04%,72.14%,27.83%,70%,"Top class accepted (yellow_review, 72.14%)."
+Left Quarter,Left_Quarter_Left QP.jpg,YELLOW - Manual Review Required,96.94%,0.55%,96.94%,2.51%,70%,"Top class accepted (yellow_review, 96.94%)."
+Right Quarter,Right_Quarter_Photo 09.jpg,RED - Likely Conventional Repair,72.46%,0.20%,27.34%,72.46%,70%,Red override triggered (72.46%) using threshold 70%.

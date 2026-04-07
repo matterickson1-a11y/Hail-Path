@@ -1,0 +1,15 @@
+vehicle_id,vehicle_001
+year,
+make,
+model,
+color,
+customer_or_insured,
+notes,
+final_route,YELLOW - Manual Review Required
+average_confidence,86.40%
+reason,"No red panels were found, but at least one panel requires manual review."
+
+slot,filename,image_route,confidence,green_pdr,yellow_review,red_conventional
+Roof,Roof_Photo 18.jpg,GREEN - PDR Candidate,89.47%,89.47%,0.47%,10.06%
+Right Roof Rail,Right_Roof_Rail_Photo 10.jpg,YELLOW - Manual Review Required,76.12%,0.00%,76.12%,23.88%
+Hood,Hood_Photo 02.jpg,YELLOW - Manual Review Required,93.61%,0.01%,93.61%,6.38%

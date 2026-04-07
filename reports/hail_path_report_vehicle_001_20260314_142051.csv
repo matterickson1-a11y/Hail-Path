@@ -1,0 +1,18 @@
+vehicle_id,vehicle_001
+vin,
+year,
+make,
+model,
+color,
+customer_or_insured,
+notes,
+final_route,YELLOW - Manual Review Required
+average_confidence,79.44%
+reason,"No confirmed red route, but at least one panel requires review."
+
+slot,filename,image_route,top_confidence,green_pdr,yellow_review,red_conventional,red_minus_green,decision_reason
+Roof,Roof_images.jpg,YELLOW - Manual Review Required,76.67%,23.30%,76.67%,0.03%,-23.26%,"Top class accepted (yellow_review, 76.67%)."
+Left Roof Rail,Left_Roof_Rail_Photo 06.jpg,GREEN - PDR Candidate,95.94%,95.94%,4.06%,0.01%,-95.93%,"Top class accepted (green_pdr, 95.94%)."
+Right Roof Rail,Right_Roof_Rail_Photo 04.jpg,YELLOW - Manual Review Required,59.67%,59.67%,39.46%,0.86%,-58.81%,Confidence below yellow threshold (59.67%).
+Hood,Hood_images.jpg,GREEN - PDR Candidate,92.24%,92.24%,7.76%,0.01%,-92.23%,"Top class accepted (green_pdr, 92.24%)."
+Decklid,Decklid_images.jpg,YELLOW - Manual Review Required,72.69%,27.03%,72.69%,0.28%,-26.75%,"Top class accepted (yellow_review, 72.69%)."

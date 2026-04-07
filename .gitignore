@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+carrier_triage_results.csv
+labels.csv
+labels_expansion.csv
+training_data_route/
+bulk_hail_candidates/
+bulk_review_sorted/
+retraining_feedback/
+test_vehicle/
+models/*.pth
+models/*.pt

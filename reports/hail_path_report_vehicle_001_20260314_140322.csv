@@ -1,0 +1,21 @@
+vehicle_id,vehicle_001
+vin,
+year,
+make,
+model,
+color,
+customer_or_insured,
+notes,
+final_route,GREEN - PDR Candidate
+average_confidence,91.49%
+reason,All analyzed panels were green.
+
+slot,filename,image_route,top_confidence,green_pdr,yellow_review,red_conventional,red_minus_green,decision_reason
+Roof,Roof_Photo 09.jpg,GREEN - PDR Candidate,96.33%,96.33%,3.51%,0.16%,-96.17%,"Top class accepted (green_pdr, 96.33%)."
+Left Roof Rail,Left_Roof_Rail_Photo 12.jpg,GREEN - PDR Candidate,78.71%,78.71%,21.12%,0.16%,-78.55%,"Top class accepted (green_pdr, 78.71%)."
+Right Roof Rail,Right_Roof_Rail_Photo 13.jpg,GREEN - PDR Candidate,77.12%,77.12%,22.87%,0.01%,-77.11%,"Top class accepted (green_pdr, 77.12%)."
+Hood,Hood_Photo 01.jpg,GREEN - PDR Candidate,88.04%,88.04%,11.96%,0.00%,-88.04%,"Top class accepted (green_pdr, 88.04%)."
+Left Fender,Left_Fender_Left Fender.jpg,GREEN - PDR Candidate,99.11%,99.11%,0.89%,0.00%,-99.11%,"Top class accepted (green_pdr, 99.11%)."
+Right Fender,Right_Fender_Right Fender.jpg,GREEN - PDR Candidate,98.59%,98.59%,1.41%,0.00%,-98.59%,"Top class accepted (green_pdr, 98.59%)."
+Left Quarter,Left_Quarter_Left QP.jpg,GREEN - PDR Candidate,99.90%,99.90%,0.10%,0.00%,-99.90%,"Top class accepted (green_pdr, 99.90%)."
+Right Quarter,Right_Quarter_Right QP.jpg,GREEN - PDR Candidate,94.12%,94.12%,5.88%,0.00%,-94.12%,"Top class accepted (green_pdr, 94.12%)."

@@ -1,0 +1,78 @@
+
+    <!doctype html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>HAIL Path Report</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 30px; color: #111; }
+            h1, h2 { margin-bottom: 8px; }
+            .meta, .summary { margin-bottom: 22px; }
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+            th { background: #f3f3f3; }
+            .route { font-size: 20px; font-weight: bold; margin: 10px 0; }
+        </style>
+    </head>
+    <body>
+        <h1>HAIL Path Triage Report</h1>
+        <div class="meta">
+            <p><strong>Vehicle / Claim ID:</strong> vehicle_001</p>
+            <p><strong>VIN:</strong> </p>
+            <p><strong>Year:</strong> </p>
+            <p><strong>Make:</strong> </p>
+            <p><strong>Model:</strong> </p>
+            <p><strong>Color:</strong> </p>
+            <p><strong>Customer / Insured:</strong> </p>
+            <p><strong>Notes:</strong> </p>
+        </div>
+        <div class="summary">
+            <h2>Final Vehicle Route</h2>
+            <div class="route">YELLOW - Manual Review Required</div>
+            <p><strong>Average Confidence:</strong> 84.86%</p>
+            <p><strong>Reason:</strong> No red panels were found, but at least one panel requires manual review.</p>
+            <p><strong>Bucket Counts:</strong> Green 0 | Yellow 2 | Red 0</p>
+        </div>
+        <h2>Photo-by-Photo Triage</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Slot</th>
+                    <th>Filename</th>
+                    <th>Image Route</th>
+                    <th>Top Confidence</th>
+                    <th>Green</th>
+                    <th>Yellow</th>
+                    <th>Red</th>
+                    <th>Decision Reason</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+        <tr>
+            <td>Right Roof Rail</td>
+            <td>Right_Roof_Rail_Photo 10.jpg</td>
+            <td>YELLOW - Manual Review Required</td>
+            <td>76.12%</td>
+            <td>0.00%</td>
+            <td>76.12%</td>
+            <td>23.88%</td>
+            <td>Top class accepted (yellow_review, 76.12%).</td>
+        </tr>
+        
+        <tr>
+            <td>Hood</td>
+            <td>Hood_Photo 02.jpg</td>
+            <td>YELLOW - Manual Review Required</td>
+            <td>93.61%</td>
+            <td>0.01%</td>
+            <td>93.61%</td>
+            <td>6.38%</td>
+            <td>Top class accepted (yellow_review, 93.61%).</td>
+        </tr>
+        
+            </tbody>
+        </table>
+    </body>
+    </html>
+    

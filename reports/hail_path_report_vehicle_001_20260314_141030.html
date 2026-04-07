@@ -1,0 +1,93 @@
+
+    <!doctype html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>HAIL Path Report</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 30px; color: #111; }
+            h1, h2 { margin-bottom: 8px; }
+            .meta, .summary { margin-bottom: 22px; }
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+            th { background: #f3f3f3; }
+            .route { font-size: 20px; font-weight: bold; margin: 10px 0; }
+        </style>
+    </head>
+    <body>
+        <h1>HAIL Path Triage Report</h1>
+        <div class="meta">
+            <p><strong>Vehicle / Claim ID:</strong> vehicle_001</p>
+            <p><strong>VIN:</strong> </p>
+            <p><strong>Year:</strong> </p>
+            <p><strong>Make:</strong> </p>
+            <p><strong>Model:</strong> </p>
+            <p><strong>Color:</strong> </p>
+            <p><strong>Customer / Insured:</strong> </p>
+            <p><strong>Notes:</strong> </p>
+        </div>
+        <div class="summary">
+            <h2>Final Vehicle Route</h2>
+            <div class="route">YELLOW - Manual Review Required</div>
+            <p><strong>Average Confidence:</strong> 79.45%</p>
+            <p><strong>Reason:</strong> No confirmed red route, but at least one panel requires review.</p>
+            <p><strong>Bucket Counts:</strong> Green 1 | Yellow 1 | Red 1</p>
+        </div>
+        <h2>Photo-by-Photo Triage</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Slot</th>
+                    <th>Filename</th>
+                    <th>Image Route</th>
+                    <th>Top Confidence</th>
+                    <th>Green</th>
+                    <th>Yellow</th>
+                    <th>Red</th>
+                    <th>Red-Green Margin</th>
+                    <th>Decision Reason</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+        <tr>
+            <td>Roof</td>
+            <td>Roof_images.jpg</td>
+            <td>RED - Likely Conventional Repair</td>
+            <td>98.17%</td>
+            <td>0.03%</td>
+            <td>1.80%</td>
+            <td>98.17%</td>
+            <td>98.14%</td>
+            <td>Red accepted: top class 98.17%, red-green margin 98.14%.</td>
+        </tr>
+        
+        <tr>
+            <td>Hood</td>
+            <td>Hood_images.jpg</td>
+            <td>YELLOW - Manual Review Required</td>
+            <td>47.94%</td>
+            <td>47.94%</td>
+            <td>43.38%</td>
+            <td>8.68%</td>
+            <td>-39.26%</td>
+            <td>Confidence below yellow threshold (47.94%).</td>
+        </tr>
+        
+        <tr>
+            <td>Decklid</td>
+            <td>Decklid_images.jpg</td>
+            <td>GREEN - PDR Candidate</td>
+            <td>92.24%</td>
+            <td>92.24%</td>
+            <td>7.76%</td>
+            <td>0.01%</td>
+            <td>-92.23%</td>
+            <td>Top class accepted (green_pdr, 92.24%).</td>
+        </tr>
+        
+            </tbody>
+        </table>
+    </body>
+    </html>
+    

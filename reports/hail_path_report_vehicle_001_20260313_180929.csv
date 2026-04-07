@@ -1,0 +1,16 @@
+vehicle_id,vehicle_001
+final_route,YELLOW - Manual Review Required
+average_confidence,91.83%
+reason,Multiple photos require manual review.
+
+slot,filename,image_route,confidence,green_pdr,yellow_review,red_conventional
+Roof,Roof_Photo 09.jpg,GREEN - PDR Candidate,92.36%,92.36%,7.24%,0.40%
+Left Roof Rail,Left_Roof_Rail_Photo 04.jpg,GREEN - PDR Candidate,83.82%,83.82%,15.88%,0.29%
+Right Roof Rail,Right_Roof_Rail_Photo 14.jpg,GREEN - PDR Candidate,87.91%,87.91%,10.65%,1.44%
+Hood,Hood_Photo 02.jpg,YELLOW - Manual Review Required,93.17%,6.66%,93.17%,0.17%
+Decklid,Decklid_Right Rear.jpg,YELLOW - Manual Review Required,98.94%,0.91%,98.94%,0.15%
+Left Quarter,Left_Quarter_Photo 07.jpg,YELLOW - Manual Review Required,78.15%,21.59%,78.15%,0.25%
+Right Quarter,Right_Quarter_Photo 10.jpg,YELLOW - Manual Review Required,99.43%,0.55%,99.43%,0.02%
+Left Front Door,Left_Front_Door_Photo 05.jpg,YELLOW - Manual Review Required,99.95%,0.04%,99.95%,0.01%
+Right Front Door,Right_Front_Door_Photo 27.jpg,YELLOW - Manual Review Required,94.96%,4.84%,94.96%,0.20%
+Left Rear Door,Left_Rear_Door_Photo 06.jpg,GREEN - PDR Candidate,89.61%,89.61%,10.30%,0.09%

@@ -1,0 +1,15 @@
+vehicle_id,vehicle_001
+year,
+make,
+model,
+color,
+customer_or_insured,
+notes,
+final_route,RED - Likely Conventional Repair
+average_confidence,82.48%
+reason,"At least one panel flagged red, so the vehicle routes to conventional repair."
+
+slot,filename,image_route,confidence,green_pdr,yellow_review,red_conventional
+Roof,Roof_download.jpg,RED - Likely Conventional Repair,99.55%,0.00%,0.45%,99.55%
+Hood,Hood_download.jpg,RED - Likely Conventional Repair,79.90%,0.01%,20.09%,79.90%
+Decklid,Decklid_download.jpg,RED - Likely Conventional Repair,67.99%,0.00%,32.01%,67.99%

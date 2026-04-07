@@ -1,0 +1,153 @@
+
+    <!doctype html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>HAIL Path Report</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 30px; color: #111; }
+            h1, h2 { margin-bottom: 8px; }
+            .meta, .summary { margin-bottom: 22px; }
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+            th { background: #f3f3f3; }
+            .route { font-size: 20px; font-weight: bold; margin: 10px 0; }
+        </style>
+    </head>
+    <body>
+        <h1>HAIL Path Triage Report</h1>
+        <div class="meta">
+            <p><strong>Vehicle / Claim ID:</strong> vehicle_001</p>
+            <p><strong>VIN:</strong> </p>
+            <p><strong>Year:</strong> </p>
+            <p><strong>Make:</strong> </p>
+            <p><strong>Model:</strong> </p>
+            <p><strong>Color:</strong> </p>
+            <p><strong>Customer / Insured:</strong> </p>
+            <p><strong>Notes:</strong> </p>
+        </div>
+        <div class="summary">
+            <h2>Final Vehicle Route</h2>
+            <div class="route">GREEN - PDR Candidate</div>
+            <p><strong>Average Confidence:</strong> 91.49%</p>
+            <p><strong>Reason:</strong> All analyzed panels were green.</p>
+            <p><strong>Bucket Counts:</strong> Green 8 | Yellow 0 | Red 0</p>
+        </div>
+        <h2>Photo-by-Photo Triage</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Slot</th>
+                    <th>Filename</th>
+                    <th>Image Route</th>
+                    <th>Top Confidence</th>
+                    <th>Green</th>
+                    <th>Yellow</th>
+                    <th>Red</th>
+                    <th>Red-Green Margin</th>
+                    <th>Decision Reason</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+        <tr>
+            <td>Roof</td>
+            <td>Roof_Photo 09.jpg</td>
+            <td>GREEN - PDR Candidate</td>
+            <td>96.33%</td>
+            <td>96.33%</td>
+            <td>3.51%</td>
+            <td>0.16%</td>
+            <td>-96.17%</td>
+            <td>Top class accepted (green_pdr, 96.33%).</td>
+        </tr>
+        
+        <tr>
+            <td>Left Roof Rail</td>
+            <td>Left_Roof_Rail_Photo 12.jpg</td>
+            <td>GREEN - PDR Candidate</td>
+            <td>78.71%</td>
+            <td>78.71%</td>
+            <td>21.12%</td>
+            <td>0.16%</td>
+            <td>-78.55%</td>
+            <td>Top class accepted (green_pdr, 78.71%).</td>
+        </tr>
+        
+        <tr>
+            <td>Right Roof Rail</td>
+            <td>Right_Roof_Rail_Photo 13.jpg</td>
+            <td>GREEN - PDR Candidate</td>
+            <td>77.12%</td>
+            <td>77.12%</td>
+            <td>22.87%</td>
+            <td>0.01%</td>
+            <td>-77.11%</td>
+            <td>Top class accepted (green_pdr, 77.12%).</td>
+        </tr>
+        
+        <tr>
+            <td>Hood</td>
+            <td>Hood_Photo 01.jpg</td>
+            <td>GREEN - PDR Candidate</td>
+            <td>88.04%</td>
+            <td>88.04%</td>
+            <td>11.96%</td>
+            <td>0.00%</td>
+            <td>-88.04%</td>
+            <td>Top class accepted (green_pdr, 88.04%).</td>
+        </tr>
+        
+        <tr>
+            <td>Left Fender</td>
+            <td>Left_Fender_Left Fender.jpg</td>
+            <td>GREEN - PDR Candidate</td>
+            <td>99.11%</td>
+            <td>99.11%</td>
+            <td>0.89%</td>
+            <td>0.00%</td>
+            <td>-99.11%</td>
+            <td>Top class accepted (green_pdr, 99.11%).</td>
+        </tr>
+        
+        <tr>
+            <td>Right Fender</td>
+            <td>Right_Fender_Right Fender.jpg</td>
+            <td>GREEN - PDR Candidate</td>
+            <td>98.59%</td>
+            <td>98.59%</td>
+            <td>1.41%</td>
+            <td>0.00%</td>
+            <td>-98.59%</td>
+            <td>Top class accepted (green_pdr, 98.59%).</td>
+        </tr>
+        
+        <tr>
+            <td>Left Quarter</td>
+            <td>Left_Quarter_Left QP.jpg</td>
+            <td>GREEN - PDR Candidate</td>
+            <td>99.90%</td>
+            <td>99.90%</td>
+            <td>0.10%</td>
+            <td>0.00%</td>
+            <td>-99.90%</td>
+            <td>Top class accepted (green_pdr, 99.90%).</td>
+        </tr>
+        
+        <tr>
+            <td>Right Quarter</td>
+            <td>Right_Quarter_Right QP.jpg</td>
+            <td>GREEN - PDR Candidate</td>
+            <td>94.12%</td>
+            <td>94.12%</td>
+            <td>5.88%</td>
+            <td>0.00%</td>
+            <td>-94.12%</td>
+            <td>Top class accepted (green_pdr, 94.12%).</td>
+        </tr>
+        
+            </tbody>
+        </table>
+    </body>
+    </html>
+    

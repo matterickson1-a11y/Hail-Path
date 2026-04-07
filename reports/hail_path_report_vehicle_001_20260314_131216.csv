@@ -1,0 +1,21 @@
+vehicle_id,vehicle_001
+vin,
+year,
+make,
+model,
+color,
+customer_or_insured,
+notes,
+final_route,RED - Likely Conventional Repair
+average_confidence,85.42%
+reason,"At least one panel flagged red, so the vehicle routes to conventional repair."
+
+slot,filename,image_route,top_confidence,green_pdr,yellow_review,red_conventional,decision_reason
+Roof,Roof_Photo 13.jpg,YELLOW - Manual Review Required,99.25%,0.00%,99.25%,0.75%,"Top class accepted (yellow_review, 99.25%)."
+Left Roof Rail,Left_Roof_Rail_Photo 04.jpg,RED - Likely Conventional Repair,99.22%,0.70%,0.08%,99.22%,Red accepted as top class (99.22%).
+Hood,Hood_Photo 02.jpg,RED - Likely Conventional Repair,91.57%,2.57%,5.86%,91.57%,Red accepted as top class (91.57%).
+Right Fender,Right_Fender_Right Side.jpg,YELLOW - Manual Review Required,95.12%,0.11%,95.12%,4.77%,"Top class accepted (yellow_review, 95.12%)."
+Decklid,Decklid_Photo 06.jpg,RED - Likely Conventional Repair,85.29%,0.03%,14.68%,85.29%,Red accepted as top class (85.29%).
+Right Quarter,Right_Quarter_Right Rear.jpg,YELLOW - Manual Review Required,55.27%,1.30%,55.27%,43.43%,Confidence below yellow threshold (55.27%).
+Left Front Door,Left_Front_Door_Photo 16.jpg,RED - Likely Conventional Repair,76.69%,0.09%,23.22%,76.69%,Red accepted as top class (76.69%).
+Right Rear Door,Right_Rear_Door_Photo 10.jpg,RED - Likely Conventional Repair,80.98%,0.06%,18.96%,80.98%,Red accepted as top class (80.98%).

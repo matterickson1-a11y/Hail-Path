@@ -1,0 +1,15 @@
+vehicle_id,vehicle_001
+vin,
+year,
+make,
+model,
+color,
+customer_or_insured,
+notes,
+final_route,RED - Likely Conventional Repair
+average_confidence,87.46%
+reason,"At least one panel flagged red, so the vehicle routes to conventional repair."
+
+slot,filename,image_route,top_confidence,green_pdr,yellow_review,red_conventional,decision_reason
+Right Roof Rail,Right_Roof_Rail_Photo 26.jpg,YELLOW - Manual Review Required,98.97%,0.03%,98.97%,1.01%,"Top class accepted (yellow_review, 98.97%)."
+Hood,Hood_Photo 19.jpg,RED - Likely Conventional Repair,75.95%,0.00%,24.05%,75.95%,Red accepted as top class (75.95%).
