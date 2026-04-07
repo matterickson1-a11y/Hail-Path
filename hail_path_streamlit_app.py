@@ -12,7 +12,7 @@ from PIL import Image
 from torchvision import models, transforms
 
 st.set_page_config(page_title="HAIL Path", layout="wide")
-
+st.image("logo.png", width=300)
 EXPORT_FILE = Path("carrier_triage_results.csv")
 FEEDBACK_DIR = Path("retraining_feedback")
 
