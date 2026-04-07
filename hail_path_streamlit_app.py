@@ -1,6 +1,5 @@
 import csv
 import html
-import shutil
 from collections import defaultdict
 from datetime import datetime
 from io import BytesIO
@@ -51,6 +50,45 @@ PANEL_KEYWORDS = [
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+
+def init_state():
+    defaults = {
+        "vehicle_claim_id": "",
+        "vin": "",
+        "year": "",
+        "make": "",
+        "model": "",
+        "color": "",
+        "customer_insured_name": "",
+        "notes": "",
+        "review_notes": "",
+        "manual_final_route": "green_pdr",
+        "do_reset": False,
+    }
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
+
+
+def apply_pending_reset():
+    if st.session_state.get("do_reset", False):
+        st.session_state["vehicle_claim_id"] = ""
+        st.session_state["vin"] = ""
+        st.session_state["year"] = ""
+        st.session_state["make"] = ""
+        st.session_state["model"] = ""
+        st.session_state["color"] = ""
+        st.session_state["customer_insured_name"] = ""
+        st.session_state["notes"] = ""
+        st.session_state["review_notes"] = ""
+        st.session_state["manual_final_route"] = "green_pdr"
+        st.session_state["do_reset"] = False
+
+
+def queue_reset():
+    st.session_state["do_reset"] = True
+
+
 def detect_panel(filename):
     name = filename.lower()
     for panel, keywords in PANEL_KEYWORDS:
@@ -59,34 +97,64 @@ def detect_panel(filename):
                 return panel
     return "other"
 
+
 def get_route_model_path():
     for p in ROUTE_MODEL_CANDIDATES:
         if p.exists():
             return p
     return None
 
+
 def build_model(num_classes):
     model = models.resnet18(weights=None)
     model.fc = nn.Linear(model.fc.in_features, num_classes)
     return model
 
+
+def normalize_class_names(value):
+    if value is None:
+        return list(CLASS_NAMES_FALLBACK)
+
+    if isinstance(value, list):
+        if len(value) == 0:
+            return list(CLASS_NAMES_FALLBACK)
+        return value
+
+    if isinstance(value, tuple):
+        if len(value) == 0:
+            return list(CLASS_NAMES_FALLBACK)
+        return list(value)
+
+    try:
+        converted = list(value)
+        if len(converted) == 0:
+            return list(CLASS_NAMES_FALLBACK)
+        return converted
+    except Exception:
+        return list(CLASS_NAMES_FALLBACK)
+
+
 def load_route_model():
     model_path = get_route_model_path()
     if model_path is None:
-        return None, None, None, "No route model file found in models folder."
+        return None, list(CLASS_NAMES_FALLBACK), None, "No route model file found in models folder."
 
     checkpoint = torch.load(model_path, map_location=DEVICE)
 
-    class_names = CLASS_NAMES_FALLBACK
+    class_names = list(CLASS_NAMES_FALLBACK)
     image_size = 224
 
     if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
-        class_names = checkpoint.get("class_names", CLASS_NAMES_FALLBACK)
-        image_size = checkpoint.get("image_size", 224)
+        class_names = normalize_class_names(checkpoint.get("class_names", CLASS_NAMES_FALLBACK))
+        maybe_image_size = checkpoint.get("image_size", 224)
+        if isinstance(maybe_image_size, int) and maybe_image_size > 0:
+            image_size = maybe_image_size
+
         model = build_model(len(class_names))
         model.load_state_dict(checkpoint["model_state_dict"])
     else:
-        model = build_model(len(CLASS_NAMES_FALLBACK))
+        class_names = list(CLASS_NAMES_FALLBACK)
+        model = build_model(len(class_names))
         model.load_state_dict(checkpoint)
 
     model.to(DEVICE)
@@ -98,6 +166,7 @@ def load_route_model():
     ])
 
     return model, class_names, transform, str(model_path)
+
 
 def predict_image(image, model, class_names, transform):
     img = image.convert("RGB")
@@ -117,11 +186,18 @@ def predict_image(image, model, class_names, transform):
 
     return pred_class, confidence, prob_map
 
+
 def aggregate_vehicle_prediction(all_results, class_names):
     if not all_results:
         return None, None, {}
 
-    totals = {name: 0.0 for name in class_names}
+    if not class_names:
+        return None, None, {}
+
+    totals = {}
+    for name in class_names:
+        totals[name] = 0.0
+
     total_weight = 0.0
 
     for item in all_results:
@@ -141,6 +217,7 @@ def aggregate_vehicle_prediction(all_results, class_names):
     best_conf = averages[best_class]
 
     return best_class, best_conf, averages
+
 
 def make_print_summary(data):
     lines = []
@@ -171,6 +248,7 @@ def make_print_summary(data):
             )
         )
     return "\n".join(lines)
+
 
 def make_print_html(data):
     rows_html = []
@@ -259,6 +337,7 @@ def make_print_html(data):
     )
     return html_doc
 
+
 def save_result(row):
     file_exists = EXPORT_FILE.exists()
     with open(EXPORT_FILE, "a", newline="", encoding="utf-8") as f:
@@ -292,17 +371,6 @@ def save_result(row):
             writer.writeheader()
         writer.writerow(row)
 
-def reset_vehicle():
-    st.session_state["vehicle_claim_id"] = ""
-    st.session_state["vin"] = ""
-    st.session_state["year"] = ""
-    st.session_state["make"] = ""
-    st.session_state["model"] = ""
-    st.session_state["color"] = ""
-    st.session_state["customer_insured_name"] = ""
-    st.session_state["notes"] = ""
-    st.session_state["review_notes"] = ""
-    st.session_state["manual_final_route"] = "green_pdr"
 
 def save_feedback_image(item, corrected_class):
     FEEDBACK_DIR.mkdir(exist_ok=True)
@@ -322,7 +390,11 @@ def save_feedback_image(item, corrected_class):
     item["image"].save(target_path)
     return str(target_path)
 
+
+init_state()
+apply_pending_reset()
 route_model, class_names, route_transform, model_info = load_route_model()
+class_names = normalize_class_names(class_names)
 
 st.title("HAIL Path")
 st.caption("All-panel hail triage with AI suggestions, export, print/share, reset, and retraining feedback buckets")
@@ -366,7 +438,7 @@ if uploaded_files:
             "panel_strength": "core panel" if panel in CORE_PANELS else "limited training panel",
         }
 
-        if route_model is not None:
+        if route_model is not None and route_transform is not None and class_names:
             pred_class, confidence, prob_map = predict_image(image, route_model, class_names, route_transform)
             item["pred_class"] = pred_class
             item["confidence"] = confidence
@@ -375,19 +447,13 @@ if uploaded_files:
         grouped[panel].append(item)
         all_predictions.append(item)
 
-    ai_vehicle_route, ai_vehicle_confidence, ai_averages = aggregate_vehicle_prediction(all_predictions, class_names if class_names else CLASS_NAMES_FALLBACK)
+    ai_vehicle_route, ai_vehicle_confidence, ai_averages = aggregate_vehicle_prediction(all_predictions, class_names)
 
-    default_manual_route = ai_vehicle_route if ai_vehicle_route in ["green_pdr", "yellow_review", "red_conventional"] else "green_pdr"
+    if st.session_state["manual_final_route"] == "green_pdr" and ai_vehicle_route in ["green_pdr", "yellow_review", "red_conventional"]:
+        st.session_state["manual_final_route"] = ai_vehicle_route
 
-    if "manual_final_route" not in st.session_state:
-        st.session_state["manual_final_route"] = default_manual_route
-
-    right_default_note = ""
-    if ai_vehicle_route is not None:
-        right_default_note = "AI suggested " + ai_vehicle_route + " at " + "{:.2%}".format(ai_vehicle_confidence) + ". Human review required."
-
-    if not st.session_state.get("review_notes"):
-        st.session_state["review_notes"] = right_default_note
+    if not st.session_state.get("review_notes") and ai_vehicle_route is not None:
+        st.session_state["review_notes"] = "AI suggested " + ai_vehicle_route + " at " + "{:.2%}".format(ai_vehicle_confidence) + ". Human review required."
 
     left, right = st.columns([2.4, 1.2])
 
@@ -400,10 +466,10 @@ if uploaded_files:
             st.write("**AI Route Suggestion:**", ai_vehicle_route)
             st.write("**AI Confidence:**", "{:.2%}".format(ai_vehicle_confidence))
 
-            if ai_averages:
+            if ai_averages and class_names:
                 st.write("**Weighted Class Averages**")
                 for class_name in class_names:
-                    st.write("- " + class_name + ": " + "{:.2%}".format(ai_averages[class_name]))
+                    st.write("- " + class_name + ": " + "{:.2%}".format(ai_averages.get(class_name, 0.0)))
 
         st.markdown("---")
         st.subheader("Manual Final Triage")
@@ -518,7 +584,7 @@ if uploaded_files:
             st.success("Triage result exported to carrier_triage_results.csv")
 
         if st.button("Start Next Car / Reset"):
-            reset_vehicle()
+            queue_reset()
             st.rerun()
 
     with left:
@@ -541,7 +607,7 @@ if uploaded_files:
                     st.write("**AI Route:**", item["pred_class"])
                     st.write("**Confidence:**", "{:.2%}".format(item["confidence"]))
 
-                    if item["prob_map"]:
+                    if item["prob_map"] and class_names:
                         for class_name in class_names:
                             st.write("- " + class_name + ": " + "{:.2%}".format(item["prob_map"].get(class_name, 0.0)))
 
