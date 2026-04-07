@@ -12,5 +12,3 @@ bulk_hail_candidates/
 bulk_review_sorted/
 retraining_feedback/
 test_vehicle/
-models/*.pth
-models/*.pt
