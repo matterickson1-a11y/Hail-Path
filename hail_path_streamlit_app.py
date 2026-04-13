@@ -1,5 +1,7 @@
 from io import BytesIO
 from pathlib import Path
+from datetime import datetime
+import html
 
 import streamlit as st
 import torch
@@ -123,6 +125,97 @@ def predict(image):
 
     return class_names[idx], float(probs[idx])
 
+def make_summary_text(claim_id, vin, year, make, model_name, color, customer, results, model_info):
+    lines = []
+    lines.append("HAIL PATH TRIAGE SUMMARY")
+    lines.append("")
+    lines.append("Timestamp: " + datetime.now().isoformat(timespec="seconds"))
+    lines.append("Claim ID: " + str(claim_id))
+    lines.append("VIN: " + str(vin))
+    lines.append("Year: " + str(year))
+    lines.append("Make: " + str(make))
+    lines.append("Model: " + str(model_name))
+    lines.append("Color: " + str(color))
+    lines.append("Customer Name: " + str(customer))
+    lines.append("AI Model: " + str(model_info))
+    lines.append("")
+    lines.append("Panel Results:")
+    for key, label, pred, conf, img, filename in results:
+        lines.append(
+            "{} | {} | {} | {:.2%} | {}".format(
+                label,
+                key,
+                DISPLAY_NAMES.get(pred, pred),
+                conf,
+                filename
+            )
+        )
+    return "\n".join(lines)
+
+def make_summary_html(claim_id, vin, year, make, model_name, color, customer, results, model_info):
+    row_html = []
+    for key, label, pred, conf, img, filename in results:
+        row_html.append(
+            "<tr><td>{}</td><td>{}</td><td>{}</td><td>{:.2%}</td><td>{}</td></tr>".format(
+                html.escape(label),
+                html.escape(key),
+                html.escape(DISPLAY_NAMES.get(pred, pred)),
+                conf,
+                html.escape(filename)
+            )
+        )
+
+    return """
+    <html>
+    <head>
+        <title>HAIL Path Summary</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 24px; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 16px; }}
+            th, td {{ border: 1px solid #ccc; padding: 8px; text-align: left; }}
+            th {{ background: #f2f2f2; }}
+        </style>
+    </head>
+    <body>
+        <h1>HAIL Path Triage Summary</h1>
+        <p><strong>Timestamp:</strong> {timestamp}</p>
+        <p><strong>Claim ID:</strong> {claim_id}</p>
+        <p><strong>VIN:</strong> {vin}</p>
+        <p><strong>Year:</strong> {year}</p>
+        <p><strong>Make:</strong> {make}</p>
+        <p><strong>Model:</strong> {model_name}</p>
+        <p><strong>Color:</strong> {color}</p>
+        <p><strong>Customer Name:</strong> {customer}</p>
+        <p><strong>AI Model:</strong> {model_info}</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Panel Label</th>
+                    <th>Panel Key</th>
+                    <th>Assessment</th>
+                    <th>Confidence</th>
+                    <th>Filename</th>
+                </tr>
+            </thead>
+            <tbody>
+                {rows}
+            </tbody>
+        </table>
+    </body>
+    </html>
+    """.format(
+        timestamp=html.escape(datetime.now().isoformat(timespec="seconds")),
+        claim_id=html.escape(str(claim_id)),
+        vin=html.escape(str(vin)),
+        year=html.escape(str(year)),
+        make=html.escape(str(make)),
+        model_name=html.escape(str(model_name)),
+        color=html.escape(str(color)),
+        customer=html.escape(str(customer)),
+        model_info=html.escape(str(model_info)),
+        rows="".join(row_html),
+    )
+
 if Path("logo.png").exists():
     c1, c2, c3 = st.columns([1, 2, 1])
     with c2:
@@ -178,6 +271,31 @@ if results:
             st.write("**Confidence:**", f"{conf:.2%}")
             st.markdown("---")
 
-if st.button("Start Next Vehicle"):
+    st.subheader("Summary / Export")
+
+    summary_text = make_summary_text(
+        vehicle_claim_id, vin, year, make, model_name, color, customer, results, model_info
+    )
+    summary_html = make_summary_html(
+        vehicle_claim_id, vin, year, make, model_name, color, customer, results, model_info
+    )
+
+    st.download_button(
+        "Download Summary (.txt)",
+        data=summary_text,
+        file_name="hail_path_summary.txt",
+        mime="text/plain",
+        use_container_width=True
+    )
+
+    st.download_button(
+        "Download Summary (.html)",
+        data=summary_html,
+        file_name="hail_path_summary.html",
+        mime="text/html",
+        use_container_width=True
+    )
+
+if st.button("Start Next Vehicle", use_container_width=True):
     do_reset()
     st.rerun()
