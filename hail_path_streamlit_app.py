@@ -1,6 +1,5 @@
 import csv
 import html
-from collections import defaultdict
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
@@ -13,9 +12,6 @@ from torchvision import models, transforms
 
 st.set_page_config(page_title="HAIL Path", layout="wide")
 
-# =========================================================
-# CLEAN UI
-# =========================================================
 st.markdown(
     """
     <style>
@@ -28,50 +24,53 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# =========================================================
-# CONFIG
-# =========================================================
 EXPORT_FILE = Path("carrier_triage_results.csv")
 FEEDBACK_DIR = Path("retraining_feedback")
 
 ROUTE_MODEL_CANDIDATES = [
-    Path("models/hail_path_triage_STABLE_20260317.pth"),
     Path("models/hail_path_triage_STABLE_20260320_feedback.pth"),
+    Path("models/hail_path_triage_STABLE_20260317.pth"),
     Path("models/hail_path_triage_pilot.pth"),
     Path("models/hail_path_triage.pth"),
 ]
 
 CLASS_NAMES_FALLBACK = ["green_pdr", "red_conventional", "yellow_review"]
 
-CORE_PANELS = {"roof", "hood", "decklid", "roof_rail"}
-ALL_PANEL_ORDER = ["roof", "roof_rail", "hood", "decklid", "quarter", "door", "fender", "other"]
-
 PANEL_WEIGHTS = {
     "roof": 1.50,
-    "roof_rail": 1.35,
+    "left_roof_rail": 1.35,
+    "right_roof_rail": 1.35,
     "hood": 1.35,
     "decklid": 1.25,
-    "quarter": 0.85,
-    "door": 0.75,
-    "fender": 0.75,
-    "other": 0.50,
+    "left_fender": 0.75,
+    "right_fender": 0.75,
+    "left_front_door": 0.75,
+    "left_rear_door": 0.75,
+    "right_front_door": 0.75,
+    "right_rear_door": 0.75,
+    "left_quarter": 0.85,
+    "right_quarter": 0.85,
 }
 
-PANEL_KEYWORDS = [
-    ("roof_rail", ["left_roof_rail", "right_roof_rail", "roof_rail", "lt rail", "rt rail", "roof rail"]),
-    ("decklid", ["decklid", "trunk", "deck lid"]),
-    ("hood", ["hood"]),
-    ("quarter", ["quarter", "qp"]),
-    ("door", ["door"]),
-    ("fender", ["fender"]),
-    ("roof", ["roof"]),
+GUIDED_PANELS = [
+    ("roof", "Roof"),
+    ("hood", "Hood"),
+    ("decklid", "Decklid"),
+    ("left_roof_rail", "Left Roof Rail"),
+    ("right_roof_rail", "Right Roof Rail"),
+    ("left_fender", "Left Fender"),
+    ("right_fender", "Right Fender"),
+    ("left_front_door", "Left Front Door"),
+    ("left_rear_door", "Left Rear Door"),
+    ("right_front_door", "Right Front Door"),
+    ("right_rear_door", "Right Rear Door"),
+    ("left_quarter", "Left Quarter"),
+    ("right_quarter", "Right Quarter"),
 ]
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# =========================================================
-# STATE
-# =========================================================
+
 def init_state():
     defaults = {
         "vehicle_claim_id": "",
@@ -91,6 +90,7 @@ def init_state():
         if key not in st.session_state:
             st.session_state[key] = value
 
+
 def apply_pending_reset():
     if st.session_state.get("do_reset", False):
         st.session_state["vehicle_claim_id"] = ""
@@ -106,30 +106,16 @@ def apply_pending_reset():
         st.session_state["uploader_key"] += 1
         st.session_state["do_reset"] = False
 
+
 def queue_reset():
     st.session_state["do_reset"] = True
 
-# =========================================================
-# HELPERS
-# =========================================================
-def detect_panel(filename):
-    name = filename.lower()
-    for panel, keywords in PANEL_KEYWORDS:
-        for keyword in keywords:
-            if keyword in name:
-                return panel
-    return "other"
-
-def get_route_model_path():
-    for p in ROUTE_MODEL_CANDIDATES:
-        if p.exists():
-            return p
-    return None
 
 def build_model(num_classes):
     model = models.resnet18(weights=None)
     model.fc = nn.Linear(model.fc.in_features, num_classes)
     return model
+
 
 def normalize_class_names(value):
     if value is None:
@@ -143,6 +129,14 @@ def normalize_class_names(value):
         return converted if converted else list(CLASS_NAMES_FALLBACK)
     except Exception:
         return list(CLASS_NAMES_FALLBACK)
+
+
+def get_route_model_path():
+    for p in ROUTE_MODEL_CANDIDATES:
+        if p.exists():
+            return p
+    return None
+
 
 def load_route_model():
     model_path = get_route_model_path()
@@ -175,6 +169,7 @@ def load_route_model():
 
     return model, class_names, transform, str(model_path)
 
+
 def predict_image(image, model, class_names, transform):
     img = image.convert("RGB")
     x = transform(img).unsqueeze(0).to(DEVICE)
@@ -192,6 +187,7 @@ def predict_image(image, model, class_names, transform):
         prob_map[class_name] = float(probs[i])
 
     return pred_class, confidence, prob_map
+
 
 def aggregate_vehicle_prediction(all_results, class_names):
     if not all_results or not class_names:
@@ -218,6 +214,7 @@ def aggregate_vehicle_prediction(all_results, class_names):
 
     return best_class, best_conf, averages
 
+
 def save_result(row):
     file_exists = EXPORT_FILE.exists()
     with open(EXPORT_FILE, "a", newline="", encoding="utf-8") as f:
@@ -235,21 +232,13 @@ def save_result(row):
             "ai_vehicle_route",
             "ai_vehicle_confidence",
             "manual_final_route",
-            "core_panel_count",
-            "roof_count",
-            "roof_rail_count",
-            "hood_count",
-            "decklid_count",
-            "quarter_count",
-            "door_count",
-            "fender_count",
-            "other_count",
             "review_notes",
         ]
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         if not file_exists:
             writer.writeheader()
         writer.writerow(row)
+
 
 def save_feedback_image(item, corrected_class):
     FEEDBACK_DIR.mkdir(exist_ok=True)
@@ -268,6 +257,7 @@ def save_feedback_image(item, corrected_class):
 
     item["image"].save(target_path)
     return str(target_path)
+
 
 def make_print_summary(data):
     lines = []
@@ -290,11 +280,11 @@ def make_print_summary(data):
     lines.append("Reviewer Notes:")
     lines.append(data["review_notes"])
     lines.append("")
-    lines.append("Per-Image Predictions:")
+    lines.append("Per-Panel Predictions:")
     for row in data["image_rows"]:
         lines.append(
             "  {} | {} | {} | {}".format(
-                row["filename"],
+                row["label"],
                 row["panel"],
                 row["pred_class"],
                 row["confidence_text"]
@@ -302,12 +292,13 @@ def make_print_summary(data):
         )
     return "\n".join(lines)
 
+
 def make_print_html(data):
     rows_html = []
     for row in data["image_rows"]:
         rows_html.append(
             "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(
-                html.escape(row["filename"]),
+                html.escape(row["label"]),
                 html.escape(row["panel"]),
                 html.escape(row["pred_class"]),
                 html.escape(row["confidence_text"]),
@@ -343,8 +334,8 @@ def make_print_html(data):
         <table>
             <thead>
                 <tr>
-                    <th>Filename</th>
-                    <th>Panel</th>
+                    <th>Panel Label</th>
+                    <th>Panel Key</th>
                     <th>Prediction</th>
                     <th>Confidence</th>
                 </tr>
@@ -372,27 +363,19 @@ def make_print_html(data):
         rows_html="".join(rows_html),
     )
 
-# =========================================================
-# APP INIT
-# =========================================================
+
 init_state()
 apply_pending_reset()
 route_model, class_names, route_transform, model_info = load_route_model()
 class_names = normalize_class_names(class_names)
 
-# =========================================================
-# HEADER
-# =========================================================
 if Path("logo.png").exists():
     c1, c2, c3 = st.columns([1, 2, 1])
     with c2:
         st.image("logo.png", width=420)
 
-st.caption("All-panel hail triage with AI suggestions, export, print/share, reset, and retraining feedback buckets")
+st.caption("Guided beta upload flow for panel-by-panel hail triage testing")
 
-# =========================================================
-# INTAKE FORM ON MAIN PAGE (PHONE FRIENDLY)
-# =========================================================
 st.subheader("Vehicle / Claim Intake")
 
 i1, i2 = st.columns(2)
@@ -420,32 +403,29 @@ notes = st.text_area("Notes", height=100, key="notes")
 with st.expander("AI Model Info"):
     st.write(model_info)
 
-# =========================================================
-# MAIN
-# =========================================================
-uploaded_files = st.file_uploader(
-    "Upload vehicle hail photos",
-    type=["jpg", "jpeg", "png", "webp"],
-    accept_multiple_files=True,
-    key="photo_uploader_" + str(st.session_state["uploader_key"])
-)
+st.subheader("Guided Panel Uploads")
 
-if uploaded_files:
-    grouped = defaultdict(list)
-    all_predictions = []
+uploaded_panel_items = []
 
-    for uploaded in uploaded_files:
-        panel = detect_panel(uploaded.name)
+for panel_key, panel_label in GUIDED_PANELS:
+    uploaded = st.file_uploader(
+        "Upload " + panel_label,
+        type=["jpg", "jpeg", "png", "webp"],
+        accept_multiple_files=False,
+        key="uploader_" + panel_key + "_" + str(st.session_state["uploader_key"])
+    )
+
+    if uploaded is not None:
         image = Image.open(BytesIO(uploaded.getvalue())).convert("RGB")
-
         item = {
             "name": uploaded.name,
-            "panel": panel,
+            "panel": panel_key,
+            "label": panel_label,
             "image": image,
             "pred_class": "no_model",
             "confidence": 0.0,
             "prob_map": {},
-            "panel_strength": "core panel" if panel in CORE_PANELS else "limited training panel",
+            "panel_strength": "core panel" if panel_key in {"roof", "hood", "decklid", "left_roof_rail", "right_roof_rail"} else "limited training panel",
         }
 
         if route_model is not None and route_transform is not None and class_names:
@@ -454,10 +434,10 @@ if uploaded_files:
             item["confidence"] = confidence
             item["prob_map"] = prob_map
 
-        grouped[panel].append(item)
-        all_predictions.append(item)
+        uploaded_panel_items.append(item)
 
-    ai_vehicle_route, ai_vehicle_confidence, ai_averages = aggregate_vehicle_prediction(all_predictions, class_names)
+if uploaded_panel_items:
+    ai_vehicle_route, ai_vehicle_confidence, ai_averages = aggregate_vehicle_prediction(uploaded_panel_items, class_names)
 
     if st.session_state["manual_final_route"] == "green_pdr" and ai_vehicle_route in ["green_pdr", "yellow_review", "red_conventional"]:
         st.session_state["manual_final_route"] = ai_vehicle_route
@@ -493,23 +473,12 @@ if uploaded_files:
         review_notes = st.text_area("Reviewer Notes", height=140, key="review_notes")
 
         st.markdown("---")
-        st.subheader("Panel Counts")
-        st.write("Roof:", len(grouped.get("roof", [])))
-        st.write("Roof Rail:", len(grouped.get("roof_rail", [])))
-        st.write("Hood:", len(grouped.get("hood", [])))
-        st.write("Decklid:", len(grouped.get("decklid", [])))
-        st.write("Quarter:", len(grouped.get("quarter", [])))
-        st.write("Door:", len(grouped.get("door", [])))
-        st.write("Fender:", len(grouped.get("fender", [])))
-        st.write("Other:", len(grouped.get("other", [])))
-
-        st.markdown("---")
-        st.subheader("PDR Print / Share Summary")
+        st.subheader("Print / Share Summary")
 
         image_rows = []
-        for item in all_predictions:
+        for item in uploaded_panel_items:
             image_rows.append({
-                "filename": item["name"],
+                "label": item["label"],
                 "panel": item["panel"],
                 "pred_class": item["pred_class"],
                 "confidence_text": "{:.2%}".format(item["confidence"]) if item["confidence"] is not None else "",
@@ -529,15 +498,6 @@ if uploaded_files:
             "ai_vehicle_route": ai_vehicle_route if ai_vehicle_route else "",
             "ai_vehicle_confidence": "{:.2%}".format(ai_vehicle_confidence) if ai_vehicle_confidence is not None else "",
             "manual_final_route": manual_final_route,
-            "core_panel_count": sum(1 for x in all_predictions if x["panel"] in CORE_PANELS),
-            "roof_count": len(grouped.get("roof", [])),
-            "roof_rail_count": len(grouped.get("roof_rail", [])),
-            "hood_count": len(grouped.get("hood", [])),
-            "decklid_count": len(grouped.get("decklid", [])),
-            "quarter_count": len(grouped.get("quarter", [])),
-            "door_count": len(grouped.get("door", [])),
-            "fender_count": len(grouped.get("fender", [])),
-            "other_count": len(grouped.get("other", [])),
             "review_notes": review_notes,
             "image_rows": image_rows,
         }
@@ -546,14 +506,14 @@ if uploaded_files:
         print_html = make_print_html(export_data)
 
         st.download_button(
-            "Download PDR Print Summary (.txt)",
+            "Download Summary (.txt)",
             data=print_text,
             file_name="hail_path_summary.txt",
             mime="text/plain"
         )
 
         st.download_button(
-            "Download Print / Share Summary (.html)",
+            "Download Summary (.html)",
             data=print_html,
             file_name="hail_path_summary.html",
             mime="text/html"
@@ -574,15 +534,6 @@ if uploaded_files:
                 "ai_vehicle_route": export_data["ai_vehicle_route"],
                 "ai_vehicle_confidence": "{:.4f}".format(ai_vehicle_confidence) if ai_vehicle_confidence is not None else "",
                 "manual_final_route": manual_final_route,
-                "core_panel_count": export_data["core_panel_count"],
-                "roof_count": export_data["roof_count"],
-                "roof_rail_count": export_data["roof_rail_count"],
-                "hood_count": export_data["hood_count"],
-                "decklid_count": export_data["decklid_count"],
-                "quarter_count": export_data["quarter_count"],
-                "door_count": export_data["door_count"],
-                "fender_count": export_data["fender_count"],
-                "other_count": export_data["other_count"],
                 "review_notes": review_notes,
             }
             save_result(row)
@@ -593,47 +544,43 @@ if uploaded_files:
             st.rerun()
 
     with left:
-        st.subheader("Photo Review")
-        st.info("All panels are displayed and scored. Core panels are weighted heavier in the overall vehicle recommendation.")
+        st.subheader("Panel Review")
 
-        for panel_name in ALL_PANEL_ORDER:
-            panel_items = grouped.get(panel_name, [])
-            if not panel_items:
-                continue
+        for item in uploaded_panel_items:
+            st.markdown("### " + item["label"])
+            c1, c2 = st.columns([1.6, 1.0])
 
-            st.markdown("### " + panel_name.replace("_", " ").title())
-            cols = st.columns(2)
+            with c1:
+                st.image(item["image"], caption=item["name"], width="stretch")
 
-            for i, item in enumerate(panel_items):
-                with cols[i % 2]:
-                    st.image(item["image"], caption=item["name"], width="stretch")
-                    st.write("**Panel Type:**", item["panel"])
-                    st.write("**Panel Status:**", item["panel_strength"])
-                    st.write("**AI Route:**", item["pred_class"])
-                    st.write("**Confidence:**", "{:.2%}".format(item["confidence"]))
+            with c2:
+                st.write("**Panel Key:**", item["panel"])
+                st.write("**Panel Status:**", item["panel_strength"])
+                st.write("**AI Route:**", item["pred_class"])
+                st.write("**Confidence:**", "{:.2%}".format(item["confidence"]))
 
-                    if item["prob_map"] and class_names:
-                        for class_name in class_names:
-                            st.write("- " + class_name + ": " + "{:.2%}".format(item["prob_map"].get(class_name, 0.0)))
+                if item["prob_map"] and class_names:
+                    for class_name in class_names:
+                        st.write("- " + class_name + ": " + "{:.2%}".format(item["prob_map"].get(class_name, 0.0)))
 
-                    st.markdown("**Send Wrong Prediction to Retraining Bucket**")
-                    fb1, fb2, fb3 = st.columns(3)
+                st.markdown("**Send Wrong Prediction to Retraining Bucket**")
+                fb1, fb2, fb3 = st.columns(3)
 
-                    with fb1:
-                        if st.button("Mark Green", key="g_" + panel_name + "_" + str(i) + "_" + item["name"]):
-                            saved_to = save_feedback_image(item, "green_pdr")
-                            st.success("Saved to " + saved_to)
+                with fb1:
+                    if st.button("Mark Green", key="g_" + item["panel"] + "_" + item["name"]):
+                        saved_to = save_feedback_image(item, "green_pdr")
+                        st.success("Saved to " + saved_to)
 
-                    with fb2:
-                        if st.button("Mark Yellow", key="y_" + panel_name + "_" + str(i) + "_" + item["name"]):
-                            saved_to = save_feedback_image(item, "yellow_review")
-                            st.success("Saved to " + saved_to)
+                with fb2:
+                    if st.button("Mark Yellow", key="y_" + item["panel"] + "_" + item["name"]):
+                        saved_to = save_feedback_image(item, "yellow_review")
+                        st.success("Saved to " + saved_to)
 
-                    with fb3:
-                        if st.button("Mark Red", key="r_" + panel_name + "_" + str(i) + "_" + item["name"]):
-                            saved_to = save_feedback_image(item, "red_conventional")
-                            st.success("Saved to " + saved_to)
+                with fb3:
+                    if st.button("Mark Red", key="r_" + item["panel"] + "_" + item["name"]):
+                        saved_to = save_feedback_image(item, "red_conventional")
+                        st.success("Saved to " + saved_to)
 
-                    st.markdown("---")
+            st.markdown("---")
 else:
-    st.info("Upload vehicle hail photos to begin triage.")
+    st.info("Upload at least one guided panel photo to begin triage.")
