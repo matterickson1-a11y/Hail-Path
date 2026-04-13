@@ -18,6 +18,25 @@ st.markdown(
     footer {visibility: hidden;}
     header {visibility: hidden;}
     .block-container {padding-top: 1rem;}
+    .assessment-box {
+        padding: 12px;
+        border-radius: 10px;
+        margin: 8px 0;
+        font-weight: 600;
+        border: 1px solid rgba(255,255,255,0.08);
+    }
+    .assessment-green {
+        background-color: rgba(40, 167, 69, 0.18);
+        border-left: 6px solid #28a745;
+    }
+    .assessment-yellow {
+        background-color: rgba(255, 193, 7, 0.18);
+        border-left: 6px solid #ffc107;
+    }
+    .assessment-red {
+        background-color: rgba(220, 53, 69, 0.18);
+        border-left: 6px solid #dc3545;
+    }
     </style>
     """,
     unsafe_allow_html=True
@@ -30,12 +49,21 @@ DISPLAY_NAMES = {
     "no_model": "Model Not Loaded",
 }
 
+DISPLAY_CLASSES = {
+    "green_pdr": "assessment-green",
+    "yellow_review": "assessment-yellow",
+    "red_conventional": "assessment-red",
+    "no_model": "assessment-yellow",
+}
+
 ROUTE_MODEL_CANDIDATES = [
     Path("models/hail_path_triage_STABLE_20260320_feedback.pth"),
     Path("models/hail_path_triage_STABLE_20260317.pth"),
     Path("models/hail_path_triage_pilot.pth"),
     Path("models/hail_path_triage.pth"),
 ]
+
+FEEDBACK_DIR = Path("retraining_feedback")
 
 CLASS_NAMES_FALLBACK = ["green_pdr", "red_conventional", "yellow_review"]
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -55,6 +83,22 @@ GUIDED_PANELS = [
     ("left_quarter", "Left Quarter"),
     ("right_quarter", "Right Quarter"),
 ]
+
+PANEL_WEIGHTS = {
+    "roof": 1.50,
+    "hood": 1.35,
+    "decklid": 1.25,
+    "left_roof_rail": 1.30,
+    "right_roof_rail": 1.30,
+    "left_fender": 0.75,
+    "right_fender": 0.75,
+    "left_front_door": 0.75,
+    "left_rear_door": 0.75,
+    "right_front_door": 0.75,
+    "right_rear_door": 0.75,
+    "left_quarter": 0.85,
+    "right_quarter": 0.85,
+}
 
 if "reset" not in st.session_state:
     st.session_state.reset = False
@@ -112,7 +156,7 @@ transform = transforms.Compose([
 
 def predict(image):
     if model is None:
-        return "no_model", 0.0
+        return "no_model", 0.0, {}
 
     x = transform(image).unsqueeze(0).to(DEVICE)
     with torch.no_grad():
@@ -121,11 +165,57 @@ def predict(image):
 
     idx = int(probs.argmax())
     if idx >= len(class_names):
-        return "no_model", 0.0
+        return "no_model", 0.0, {}
 
-    return class_names[idx], float(probs[idx])
+    prob_map = {}
+    for i, name in enumerate(class_names):
+        prob_map[name] = float(probs[i])
 
-def make_summary_text(claim_id, vin, year, make, model_name, color, customer, results, model_info):
+    return class_names[idx], float(probs[idx]), prob_map
+
+def save_feedback_image(item, corrected_class):
+    FEEDBACK_DIR.mkdir(exist_ok=True)
+    target_dir = FEEDBACK_DIR / corrected_class
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    safe_name = item["panel"] + "__" + item["filename"]
+    target_path = target_dir / safe_name
+
+    counter = 1
+    while target_path.exists():
+        stem = Path(safe_name).stem
+        suffix = Path(safe_name).suffix
+        target_path = target_dir / (stem + "_" + str(counter) + suffix)
+        counter += 1
+
+    item["image"].save(target_path)
+    return str(target_path)
+
+def aggregate_results(results):
+    usable = [r for r in results if r["prediction"] != "no_model"]
+    if not usable:
+        return None, 0.0, {}
+
+    totals = {name: 0.0 for name in class_names}
+    total_weight = 0.0
+
+    for item in usable:
+        weight = PANEL_WEIGHTS.get(item["panel"], 1.0)
+        total_weight += weight
+        for name in class_names:
+            totals[name] += item["prob_map"].get(name, 0.0) * weight
+
+    if total_weight == 0:
+        return None, 0.0, {}
+
+    averages = {}
+    for name in class_names:
+        averages[name] = totals[name] / total_weight
+
+    best = max(averages, key=averages.get)
+    return best, averages[best], averages
+
+def make_summary_text(claim_id, vin, year, make, model_name, color, customer, results, model_info, overall_pred, overall_conf):
     lines = []
     lines.append("HAIL PATH TRIAGE SUMMARY")
     lines.append("")
@@ -139,29 +229,32 @@ def make_summary_text(claim_id, vin, year, make, model_name, color, customer, re
     lines.append("Customer Name: " + str(customer))
     lines.append("AI Model: " + str(model_info))
     lines.append("")
+    lines.append("Overall Assessment: " + str(DISPLAY_NAMES.get(overall_pred, overall_pred)))
+    lines.append("Overall Confidence: " + "{:.2%}".format(overall_conf))
+    lines.append("")
     lines.append("Panel Results:")
-    for key, label, pred, conf, img, filename in results:
+    for item in results:
         lines.append(
             "{} | {} | {} | {:.2%} | {}".format(
-                label,
-                key,
-                DISPLAY_NAMES.get(pred, pred),
-                conf,
-                filename
+                item["label"],
+                item["panel"],
+                DISPLAY_NAMES.get(item["prediction"], item["prediction"]),
+                item["confidence"],
+                item["filename"]
             )
         )
     return "\n".join(lines)
 
-def make_summary_html(claim_id, vin, year, make, model_name, color, customer, results, model_info):
+def make_summary_html(claim_id, vin, year, make, model_name, color, customer, results, model_info, overall_pred, overall_conf):
     row_html = []
-    for key, label, pred, conf, img, filename in results:
+    for item in results:
         row_html.append(
             "<tr><td>{}</td><td>{}</td><td>{}</td><td>{:.2%}</td><td>{}</td></tr>".format(
-                html.escape(label),
-                html.escape(key),
-                html.escape(DISPLAY_NAMES.get(pred, pred)),
-                conf,
-                html.escape(filename)
+                html.escape(item["label"]),
+                html.escape(item["panel"]),
+                html.escape(DISPLAY_NAMES.get(item["prediction"], item["prediction"])),
+                item["confidence"],
+                html.escape(item["filename"])
             )
         )
 
@@ -187,6 +280,8 @@ def make_summary_html(claim_id, vin, year, make, model_name, color, customer, re
         <p><strong>Color:</strong> {color}</p>
         <p><strong>Customer Name:</strong> {customer}</p>
         <p><strong>AI Model:</strong> {model_info}</p>
+        <p><strong>Overall Assessment:</strong> {overall_pred}</p>
+        <p><strong>Overall Confidence:</strong> {overall_conf}</p>
         <table>
             <thead>
                 <tr>
@@ -213,6 +308,8 @@ def make_summary_html(claim_id, vin, year, make, model_name, color, customer, re
         color=html.escape(str(color)),
         customer=html.escape(str(customer)),
         model_info=html.escape(str(model_info)),
+        overall_pred=html.escape(DISPLAY_NAMES.get(overall_pred, overall_pred)),
+        overall_conf="{:.2%}".format(overall_conf),
         rows="".join(row_html),
     )
 
@@ -253,31 +350,91 @@ for key, label in GUIDED_PANELS:
     if file is not None:
         img = Image.open(BytesIO(file.getvalue()))
         img = ImageOps.exif_transpose(img).convert("RGB")
-        pred, conf = predict(img)
-        results.append((key, label, pred, conf, img, file.name))
+        pred, conf, prob_map = predict(img)
+
+        results.append({
+            "panel": key,
+            "label": label,
+            "prediction": pred,
+            "confidence": conf,
+            "prob_map": prob_map,
+            "image": img,
+            "filename": file.name,
+        })
 
 if results:
+    overall_pred, overall_conf, overall_probs = aggregate_results(results)
+
+    st.subheader("Overall Vehicle Assessment")
+
+    if overall_pred is not None:
+        css_class = DISPLAY_CLASSES.get(overall_pred, "assessment-yellow")
+        st.markdown(
+            "<div class='assessment-box {}'>Overall Assessment: {}<br>Confidence: {:.2%}</div>".format(
+                css_class,
+                DISPLAY_NAMES.get(overall_pred, overall_pred),
+                overall_conf
+            ),
+            unsafe_allow_html=True
+        )
+
+        with st.expander("Overall Probability Breakdown"):
+            for name in class_names:
+                st.write(DISPLAY_NAMES.get(name, name) + ": " + "{:.2%}".format(overall_probs.get(name, 0.0)))
+    else:
+        st.warning("No overall model assessment available.")
+
     st.subheader("AI Results")
 
-    for key, label, pred, conf, img, filename in results:
+    for item in results:
         c1, c2 = st.columns([1.5, 1.0])
 
         with c1:
-            st.image(img, width="stretch", caption=filename)
+            st.image(item["image"], width="stretch", caption=item["filename"])
 
         with c2:
-            st.write("**Panel:**", label)
-            st.write("**AI Assessment:**", DISPLAY_NAMES.get(pred, pred))
-            st.write("**Confidence:**", f"{conf:.2%}")
-            st.markdown("---")
+            css_class = DISPLAY_CLASSES.get(item["prediction"], "assessment-yellow")
+            st.write("**Panel:**", item["label"])
+            st.markdown(
+                "<div class='assessment-box {}'>AI Assessment: {}<br>Confidence: {:.2%}</div>".format(
+                    css_class,
+                    DISPLAY_NAMES.get(item["prediction"], item["prediction"]),
+                    item["confidence"]
+                ),
+                unsafe_allow_html=True
+            )
+
+            with st.expander("Probability Breakdown"):
+                for name in class_names:
+                    st.write(DISPLAY_NAMES.get(name, name) + ": " + "{:.2%}".format(item["prob_map"].get(name, 0.0)))
+
+            st.markdown("**Correction / Retraining**")
+            r1, r2, r3 = st.columns(3)
+
+            with r1:
+                if st.button("Mark PDR", key="g_" + item["panel"] + "_" + item["filename"]):
+                    saved_to = save_feedback_image(item, "green_pdr")
+                    st.success("Saved to " + saved_to)
+
+            with r2:
+                if st.button("Mark Review", key="y_" + item["panel"] + "_" + item["filename"]):
+                    saved_to = save_feedback_image(item, "yellow_review")
+                    st.success("Saved to " + saved_to)
+
+            with r3:
+                if st.button("Mark Conventional", key="r_" + item["panel"] + "_" + item["filename"]):
+                    saved_to = save_feedback_image(item, "red_conventional")
+                    st.success("Saved to " + saved_to)
+
+        st.markdown("---")
 
     st.subheader("Summary / Export")
 
     summary_text = make_summary_text(
-        vehicle_claim_id, vin, year, make, model_name, color, customer, results, model_info
+        vehicle_claim_id, vin, year, make, model_name, color, customer, results, model_info, overall_pred, overall_conf
     )
     summary_html = make_summary_html(
-        vehicle_claim_id, vin, year, make, model_name, color, customer, results, model_info
+        vehicle_claim_id, vin, year, make, model_name, color, customer, results, model_info, overall_pred, overall_conf
     )
 
     st.download_button(
