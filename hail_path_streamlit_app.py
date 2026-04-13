@@ -7,7 +7,7 @@ from pathlib import Path
 import streamlit as st
 import torch
 import torch.nn as nn
-from PIL import Image
+from PIL import Image, ImageOps
 from torchvision import models, transforms
 
 st.set_page_config(page_title="HAIL Path", layout="wide")
@@ -416,7 +416,9 @@ for panel_key, panel_label in GUIDED_PANELS:
     )
 
     if uploaded is not None:
-        image = Image.open(BytesIO(uploaded.getvalue())).convert("RGB")
+        image = Image.open(BytesIO(uploaded.getvalue()))
+        image = ImageOps.exif_transpose(image).convert("RGB")
+
         item = {
             "name": uploaded.name,
             "panel": panel_key,
