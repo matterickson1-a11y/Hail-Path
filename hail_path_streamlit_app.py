@@ -12,6 +12,9 @@ from torchvision import models, transforms
 
 st.set_page_config(page_title="HAIL Path", layout="wide")
 
+# -------------------------
+# LIGHTWEIGHT STYLING
+# -------------------------
 st.markdown(
     """
     <style>
@@ -19,48 +22,25 @@ st.markdown(
     footer {visibility: hidden;}
     header {visibility: hidden;}
     .block-container {padding-top: 1rem;}
-    .assessment-box {
-        padding: 12px;
-        border-radius: 10px;
-        margin: 8px 0;
-        font-weight: 600;
-        border: 1px solid rgba(255,255,255,0.08);
-    }
-    .assessment-green {
-        background-color: rgba(40, 167, 69, 0.18);
-        border-left: 6px solid #28a745;
-    }
-    .assessment-yellow {
-        background-color: rgba(255, 193, 7, 0.18);
-        border-left: 6px solid #ffc107;
-    }
-    .assessment-red {
-        background-color: rgba(220, 53, 69, 0.18);
-        border-left: 6px solid #dc3545;
-    }
-    .panel-card {
+    .card {
         padding: 10px;
-        border: 1px solid rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.10);
         border-radius: 10px;
-        margin-bottom: 10px;
+        margin-bottom: 12px;
     }
     </style>
     """,
     unsafe_allow_html=True
 )
 
+# -------------------------
+# CONFIG
+# -------------------------
 DISPLAY_NAMES = {
     "green_pdr": "PDR Candidate",
     "yellow_review": "Review Recommended",
     "red_conventional": "Conventional Likely",
     "no_model": "Model Not Loaded",
-}
-
-DISPLAY_CLASSES = {
-    "green_pdr": "assessment-green",
-    "yellow_review": "assessment-yellow",
-    "red_conventional": "assessment-red",
-    "no_model": "assessment-yellow",
 }
 
 ROUTE_MODEL_CANDIDATES = [
@@ -109,15 +89,24 @@ PANEL_WEIGHTS = {
     "right_quarter": 0.85,
 }
 
-MAX_UPLOAD_IMAGE_SIZE = 768
-JPEG_QUALITY = 80
+# Lower than before for reliability on cloud/phone
+MAX_UPLOAD_IMAGE_SIZE = 640
+JPEG_QUALITY = 76
+DISPLAY_IMAGE_WIDTH = 420
+LOGO_WIDTH = 380
 
+# -------------------------
+# STATE
+# -------------------------
 if "reset_counter" not in st.session_state:
     st.session_state["reset_counter"] = 0
 
 def trigger_reset():
     st.session_state["reset_counter"] += 1
 
+# -------------------------
+# MODEL
+# -------------------------
 def build_model(num_classes):
     model = models.resnet18(weights=None)
     model.fc = nn.Linear(model.fc.in_features, num_classes)
@@ -128,6 +117,7 @@ def load_model():
     for path in ROUTE_MODEL_CANDIDATES:
         if not path.exists():
             continue
+
         try:
             checkpoint = torch.load(path, map_location=DEVICE)
 
@@ -147,6 +137,7 @@ def load_model():
             model.to(DEVICE)
             model.eval()
             return model, class_names, str(path)
+
         except Exception as e:
             print("MODEL LOAD ERROR:", str(e))
             continue
@@ -169,8 +160,7 @@ def prepare_uploaded_image(file_obj):
     img.save(buffer, format="JPEG", quality=JPEG_QUALITY, optimize=True)
     buffer.seek(0)
 
-    processed = Image.open(buffer).convert("RGB")
-    return processed
+    return Image.open(buffer).convert("RGB")
 
 def predict(image):
     if model is None:
@@ -194,6 +184,9 @@ def predict(image):
     except Exception:
         return "no_model", 0.0, {}
 
+# -------------------------
+# HELPERS
+# -------------------------
 def save_feedback_image(item, corrected_class):
     FEEDBACK_DIR.mkdir(exist_ok=True)
     target_dir = FEEDBACK_DIR / corrected_class
@@ -292,10 +285,7 @@ def make_summary_html(claim_id, vin, year, make, model_name, color, customer, no
     logo_html = ""
     logo_b64 = get_logo_base64()
     if logo_b64:
-        logo_html = f"<img src='data:image/png;base64,{logo_b64}' style='max-width:260px; height:auto; margin-bottom:16px;'>"
-
-    overall_class = DISPLAY_CLASSES.get(overall_pred, "assessment-yellow")
-    overall_label = DISPLAY_NAMES.get(overall_pred, overall_pred)
+        logo_html = f"<img src='data:image/png;base64,{logo_b64}' style='max-width:240px; height:auto; margin-bottom:14px;'>"
 
     return """
     <html>
@@ -304,23 +294,13 @@ def make_summary_html(claim_id, vin, year, make, model_name, color, customer, no
         <style>
             body {{ font-family: Arial, sans-serif; margin: 24px; color: #111; }}
             .header {{ text-align: center; margin-bottom: 20px; }}
-            .assessment-box {{
+            .summary-box {{
                 padding: 14px;
                 border-radius: 10px;
                 margin: 14px 0;
+                background: #f4f4f4;
+                border-left: 6px solid #444;
                 font-weight: 600;
-            }}
-            .assessment-green {{
-                background-color: rgba(40, 167, 69, 0.18);
-                border-left: 6px solid #28a745;
-            }}
-            .assessment-yellow {{
-                background-color: rgba(255, 193, 7, 0.18);
-                border-left: 6px solid #ffc107;
-            }}
-            .assessment-red {{
-                background-color: rgba(220, 53, 69, 0.18);
-                border-left: 6px solid #dc3545;
             }}
             table {{ width: 100%; border-collapse: collapse; margin-top: 16px; }}
             th, td {{ border: 1px solid #ccc; padding: 8px; text-align: left; }}
@@ -344,7 +324,7 @@ def make_summary_html(claim_id, vin, year, make, model_name, color, customer, no
         <p><strong>Notes:</strong> {notes}</p>
         <p><strong>AI Model:</strong> {model_info}</p>
 
-        <div class="assessment-box {overall_class}">
+        <div class="summary-box">
             Overall Assessment: {overall_pred}<br>
             Overall Confidence: {overall_conf}
         </div>
@@ -377,22 +357,39 @@ def make_summary_html(claim_id, vin, year, make, model_name, color, customer, no
         customer=html.escape(str(customer)),
         notes=html.escape(str(notes)),
         model_info=html.escape(str(model_info)),
-        overall_class=overall_class,
-        overall_pred=html.escape(overall_label),
+        overall_pred=html.escape(DISPLAY_NAMES.get(overall_pred, overall_pred)),
         overall_conf="{:.2%}".format(overall_conf),
         rows="".join(row_html),
     )
 
+def render_assessment_box(prediction, confidence, label_prefix):
+    pretty = DISPLAY_NAMES.get(prediction, prediction)
+
+    if prediction == "green_pdr":
+        st.success(f"{label_prefix}: {pretty} | Confidence: {confidence:.2%}")
+    elif prediction == "yellow_review":
+        st.warning(f"{label_prefix}: {pretty} | Confidence: {confidence:.2%}")
+    elif prediction == "red_conventional":
+        st.error(f"{label_prefix}: {pretty} | Confidence: {confidence:.2%}")
+    else:
+        st.info(f"{label_prefix}: {pretty} | Confidence: {confidence:.2%}")
+
+# -------------------------
+# HEADER
+# -------------------------
 try:
     if LOGO_PATH.exists():
         c1, c2, c3 = st.columns([1, 2, 1])
         with c2:
-            st.image("logo.png", width=420)
+            st.image("logo.png", width=LOGO_WIDTH)
 except Exception:
     pass
 
 st.caption("AI-assisted hail triage beta — human review required")
 
+# -------------------------
+# INTAKE
+# -------------------------
 st.subheader("Vehicle / Claim Intake")
 
 col1, col2 = st.columns(2)
@@ -411,6 +408,9 @@ notes = st.text_area("Notes", height=100)
 with st.expander("AI Model Info"):
     st.write(model_info)
 
+# -------------------------
+# UPLOADS
+# -------------------------
 st.subheader("Guided Panel Upload")
 st.caption("Each panel opens into 3 compact photo slots for cleaner phone testing.")
 
@@ -418,14 +418,8 @@ results = []
 
 for panel_key, panel_label in PANEL_CONFIG:
     with st.expander(panel_label, expanded=False):
-        st.markdown("<div class='panel-card'>", unsafe_allow_html=True)
-
         slot1, slot2, slot3 = st.columns(3)
-        uploader_specs = [
-            (slot1, 1),
-            (slot2, 2),
-            (slot3, 3),
-        ]
+        uploader_specs = [(slot1, 1), (slot2, 2), (slot3, 3)]
 
         for container, slot_number in uploader_specs:
             with container:
@@ -456,23 +450,16 @@ for panel_key, panel_label in PANEL_CONFIG:
                     except Exception:
                         st.warning(f"Could not process {panel_label} Photo {slot_number}")
 
-        st.markdown("</div>", unsafe_allow_html=True)
-
+# -------------------------
+# RESULTS
+# -------------------------
 if results:
     overall_pred, overall_conf, overall_probs = aggregate_results(results)
 
     st.subheader("Overall Vehicle Assessment")
 
     if overall_pred is not None:
-        css_class = DISPLAY_CLASSES.get(overall_pred, "assessment-yellow")
-        st.markdown(
-            "<div class='assessment-box {}'>Overall Assessment: {}<br>Confidence: {:.2%}</div>".format(
-                css_class,
-                DISPLAY_NAMES.get(overall_pred, overall_pred),
-                overall_conf
-            ),
-            unsafe_allow_html=True
-        )
+        render_assessment_box(overall_pred, overall_conf, "Overall Assessment")
 
         with st.expander("Overall Probability Breakdown"):
             for name in class_names:
@@ -486,19 +473,11 @@ if results:
         c1, c2 = st.columns([1.5, 1.0])
 
         with c1:
-            st.image(item["image"], caption=item["filename"], width=500)
+            st.image(item["image"], caption=item["filename"], width=DISPLAY_IMAGE_WIDTH)
 
         with c2:
-            css_class = DISPLAY_CLASSES.get(item["prediction"], "assessment-yellow")
             st.write("**Panel:**", item["instance_label"])
-            st.markdown(
-                "<div class='assessment-box {}'>AI Assessment: {}<br>Confidence: {:.2%}</div>".format(
-                    css_class,
-                    DISPLAY_NAMES.get(item["prediction"], item["prediction"]),
-                    item["confidence"]
-                ),
-                unsafe_allow_html=True
-            )
+            render_assessment_box(item["prediction"], item["confidence"], "AI Assessment")
 
             with st.expander("Probability Breakdown"):
                 for name in class_names:
