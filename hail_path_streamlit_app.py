@@ -2,6 +2,7 @@ from io import BytesIO
 from pathlib import Path
 from datetime import datetime
 import html
+import base64
 
 import streamlit as st
 import torch
@@ -37,6 +38,12 @@ st.markdown(
         background-color: rgba(220, 53, 69, 0.18);
         border-left: 6px solid #dc3545;
     }
+    .panel-card {
+        padding: 10px;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 10px;
+        margin-bottom: 10px;
+    }
     </style>
     """,
     unsafe_allow_html=True
@@ -65,6 +72,7 @@ ROUTE_MODEL_CANDIDATES = [
 ]
 
 FEEDBACK_DIR = Path("retraining_feedback")
+LOGO_PATH = Path("logo.png")
 
 CLASS_NAMES_FALLBACK = ["green_pdr", "red_conventional", "yellow_review"]
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -228,6 +236,15 @@ def aggregate_results(results):
     best = max(averages, key=averages.get)
     return best, averages[best], averages
 
+def get_logo_base64():
+    if not LOGO_PATH.exists():
+        return None
+    try:
+        with open(LOGO_PATH, "rb") as f:
+            return base64.b64encode(f.read()).decode("utf-8")
+    except Exception:
+        return None
+
 def make_summary_text(claim_id, vin, year, make, model_name, color, customer, notes, results, model_info, overall_pred, overall_conf):
     lines = []
     lines.append("HAIL PATH TRIAGE SUMMARY")
@@ -272,19 +289,50 @@ def make_summary_html(claim_id, vin, year, make, model_name, color, customer, no
             )
         )
 
+    logo_html = ""
+    logo_b64 = get_logo_base64()
+    if logo_b64:
+        logo_html = f"<img src='data:image/png;base64,{logo_b64}' style='max-width:260px; height:auto; margin-bottom:16px;'>"
+
+    overall_class = DISPLAY_CLASSES.get(overall_pred, "assessment-yellow")
+    overall_label = DISPLAY_NAMES.get(overall_pred, overall_pred)
+
     return """
     <html>
     <head>
         <title>HAIL Path Summary</title>
         <style>
-            body {{ font-family: Arial, sans-serif; margin: 24px; }}
+            body {{ font-family: Arial, sans-serif; margin: 24px; color: #111; }}
+            .header {{ text-align: center; margin-bottom: 20px; }}
+            .assessment-box {{
+                padding: 14px;
+                border-radius: 10px;
+                margin: 14px 0;
+                font-weight: 600;
+            }}
+            .assessment-green {{
+                background-color: rgba(40, 167, 69, 0.18);
+                border-left: 6px solid #28a745;
+            }}
+            .assessment-yellow {{
+                background-color: rgba(255, 193, 7, 0.18);
+                border-left: 6px solid #ffc107;
+            }}
+            .assessment-red {{
+                background-color: rgba(220, 53, 69, 0.18);
+                border-left: 6px solid #dc3545;
+            }}
             table {{ width: 100%; border-collapse: collapse; margin-top: 16px; }}
             th, td {{ border: 1px solid #ccc; padding: 8px; text-align: left; }}
             th {{ background: #f2f2f2; }}
         </style>
     </head>
     <body>
-        <h1>HAIL Path Triage Summary</h1>
+        <div class="header">
+            {logo_html}
+            <h1>HAIL Path Triage Summary</h1>
+        </div>
+
         <p><strong>Timestamp:</strong> {timestamp}</p>
         <p><strong>Claim ID:</strong> {claim_id}</p>
         <p><strong>VIN:</strong> {vin}</p>
@@ -295,8 +343,12 @@ def make_summary_html(claim_id, vin, year, make, model_name, color, customer, no
         <p><strong>Customer Name:</strong> {customer}</p>
         <p><strong>Notes:</strong> {notes}</p>
         <p><strong>AI Model:</strong> {model_info}</p>
-        <p><strong>Overall Assessment:</strong> {overall_pred}</p>
-        <p><strong>Overall Confidence:</strong> {overall_conf}</p>
+
+        <div class="assessment-box {overall_class}">
+            Overall Assessment: {overall_pred}<br>
+            Overall Confidence: {overall_conf}
+        </div>
+
         <table>
             <thead>
                 <tr>
@@ -314,6 +366,7 @@ def make_summary_html(claim_id, vin, year, make, model_name, color, customer, no
     </body>
     </html>
     """.format(
+        logo_html=logo_html,
         timestamp=html.escape(datetime.now().isoformat(timespec="seconds")),
         claim_id=html.escape(str(claim_id)),
         vin=html.escape(str(vin)),
@@ -324,13 +377,14 @@ def make_summary_html(claim_id, vin, year, make, model_name, color, customer, no
         customer=html.escape(str(customer)),
         notes=html.escape(str(notes)),
         model_info=html.escape(str(model_info)),
-        overall_pred=html.escape(DISPLAY_NAMES.get(overall_pred, overall_pred)),
+        overall_class=overall_class,
+        overall_pred=html.escape(overall_label),
         overall_conf="{:.2%}".format(overall_conf),
         rows="".join(row_html),
     )
 
 try:
-    if Path("logo.png").exists():
+    if LOGO_PATH.exists():
         c1, c2, c3 = st.columns([1, 2, 1])
         with c2:
             st.image("logo.png", width=420)
@@ -358,47 +412,51 @@ with st.expander("AI Model Info"):
     st.write(model_info)
 
 st.subheader("Guided Panel Upload")
-st.caption("Each panel has 3 upload slots for phone-safe beta testing.")
+st.caption("Each panel opens into 3 compact photo slots for cleaner phone testing.")
 
 results = []
 
 for panel_key, panel_label in PANEL_CONFIG:
-    st.markdown("### " + panel_label)
+    with st.expander(panel_label, expanded=False):
+        st.markdown("<div class='panel-card'>", unsafe_allow_html=True)
 
-    slot1, slot2, slot3 = st.columns(3)
+        slot1, slot2, slot3 = st.columns(3)
+        uploader_specs = [
+            (slot1, 1),
+            (slot2, 2),
+            (slot3, 3),
+        ]
 
-    uploader_specs = [
-        (slot1, 1),
-        (slot2, 2),
-        (slot3, 3),
-    ]
+        for container, slot_number in uploader_specs:
+            with container:
+                file = st.file_uploader(
+                    f"Photo {slot_number}",
+                    key=f"{panel_key}_slot_{slot_number}_{st.session_state['reset_counter']}",
+                    accept_multiple_files=False,
+                    type=["jpg", "jpeg", "png", "webp"]
+                )
 
-    for container, slot_number in uploader_specs:
-        with container:
-            file = st.file_uploader(
-                f"{panel_label} Photo {slot_number}",
-                key=f"{panel_key}_slot_{slot_number}_{st.session_state['reset_counter']}",
-                accept_multiple_files=False,
-                type=["jpg", "jpeg", "png", "webp"]
-            )
+                if file is not None:
+                    try:
+                        img = prepare_uploaded_image(file)
+                        pred, conf, prob_map = predict(img)
 
-            if file is not None:
-                try:
-                    img = prepare_uploaded_image(file)
-                    pred, conf, prob_map = predict(img)
+                        results.append({
+                            "panel": panel_key,
+                            "label": panel_label,
+                            "prediction": pred,
+                            "confidence": conf,
+                            "prob_map": prob_map,
+                            "image": img,
+                            "filename": file.name,
+                            "instance_label": f"{panel_label} Photo {slot_number}",
+                        })
 
-                    results.append({
-                        "panel": panel_key,
-                        "label": panel_label,
-                        "prediction": pred,
-                        "confidence": conf,
-                        "prob_map": prob_map,
-                        "image": img,
-                        "filename": file.name,
-                        "instance_label": f"{panel_label} Photo {slot_number}",
-                    })
-                except Exception:
-                    st.warning(f"Could not process {panel_label} Photo {slot_number}")
+                        st.image(img, caption=f"Photo {slot_number}", width=140)
+                    except Exception:
+                        st.warning(f"Could not process {panel_label} Photo {slot_number}")
+
+        st.markdown("</div>", unsafe_allow_html=True)
 
 if results:
     overall_pred, overall_conf, overall_probs = aggregate_results(results)
@@ -428,7 +486,7 @@ if results:
         c1, c2 = st.columns([1.5, 1.0])
 
         with c1:
-            st.image(item["image"], caption=item["filename"], use_column_width=True)
+            st.image(item["image"], caption=item["filename"], width=500)
 
         with c2:
             css_class = DISPLAY_CLASSES.get(item["prediction"], "assessment-yellow")
