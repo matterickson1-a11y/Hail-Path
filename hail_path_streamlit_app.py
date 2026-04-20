@@ -143,9 +143,10 @@ def load_model():
             return model, class_names, str(path)
 
         except Exception as e:
-            return None, list(CLASS_NAMES_FALLBACK), "Model load failed: " + str(e)
+            print("MODEL LOAD ERROR:", str(e))
+            continue
 
-    return None, list(CLASS_NAMES_FALLBACK), "No model found"
+    return None, list(CLASS_NAMES_FALLBACK), "Model failed to load"
 
 model, class_names, model_info = load_model()
 
@@ -158,20 +159,23 @@ def predict(image):
     if model is None:
         return "no_model", 0.0, {}
 
-    x = transform(image).unsqueeze(0).to(DEVICE)
-    with torch.no_grad():
-        outputs = model(x)
-        probs = torch.softmax(outputs, dim=1)[0]
+    try:
+        x = transform(image).unsqueeze(0).to(DEVICE)
+        with torch.no_grad():
+            outputs = model(x)
+            probs = torch.softmax(outputs, dim=1)[0]
 
-    idx = int(probs.argmax())
-    if idx >= len(class_names):
+        idx = int(probs.argmax())
+        if idx >= len(class_names):
+            return "no_model", 0.0, {}
+
+        prob_map = {}
+        for i, name in enumerate(class_names):
+            prob_map[name] = float(probs[i])
+
+        return class_names[idx], float(probs[idx]), prob_map
+    except Exception:
         return "no_model", 0.0, {}
-
-    prob_map = {}
-    for i, name in enumerate(class_names):
-        prob_map[name] = float(probs[i])
-
-    return class_names[idx], float(probs[idx]), prob_map
 
 def save_feedback_image(item, corrected_class):
     FEEDBACK_DIR.mkdir(exist_ok=True)
@@ -313,10 +317,13 @@ def make_summary_html(claim_id, vin, year, make, model_name, color, customer, re
         rows="".join(row_html),
     )
 
-if Path("logo.png").exists():
-    c1, c2, c3 = st.columns([1, 2, 1])
-    with c2:
-        st.image("logo.png", width=420)
+try:
+    if Path("logo.png").exists():
+        c1, c2, c3 = st.columns([1, 2, 1])
+        with c2:
+            st.image("logo.png", width=420)
+except Exception:
+    pass
 
 st.caption("AI-assisted hail triage beta — human review required")
 
@@ -348,19 +355,22 @@ for key, label in GUIDED_PANELS:
     )
 
     if file is not None:
-        img = Image.open(BytesIO(file.getvalue()))
-        img = ImageOps.exif_transpose(img).convert("RGB")
-        pred, conf, prob_map = predict(img)
+        try:
+            img = Image.open(BytesIO(file.getvalue()))
+            img = ImageOps.exif_transpose(img).convert("RGB")
+            pred, conf, prob_map = predict(img)
 
-        results.append({
-            "panel": key,
-            "label": label,
-            "prediction": pred,
-            "confidence": conf,
-            "prob_map": prob_map,
-            "image": img,
-            "filename": file.name,
-        })
+            results.append({
+                "panel": key,
+                "label": label,
+                "prediction": pred,
+                "confidence": conf,
+                "prob_map": prob_map,
+                "image": img,
+                "filename": file.name,
+            })
+        except Exception:
+            st.warning("Could not process image for " + label)
 
 if results:
     overall_pred, overall_conf, overall_probs = aggregate_results(results)
@@ -382,7 +392,7 @@ if results:
             for name in class_names:
                 st.write(DISPLAY_NAMES.get(name, name) + ": " + "{:.2%}".format(overall_probs.get(name, 0.0)))
     else:
-        st.warning("No overall model assessment available.")
+        st.warning("AI model did not load on this app instance. The UI is still available.")
 
     st.subheader("AI Results")
 
