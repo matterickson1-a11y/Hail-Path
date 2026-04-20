@@ -107,23 +107,19 @@ JPEG_QUALITY = 80
 if "reset_counter" not in st.session_state:
     st.session_state["reset_counter"] = 0
 
-
 def trigger_reset():
     st.session_state["reset_counter"] += 1
-
 
 def build_model(num_classes):
     model = models.resnet18(weights=None)
     model.fc = nn.Linear(model.fc.in_features, num_classes)
     return model
 
-
 @st.cache_resource
 def load_model():
     for path in ROUTE_MODEL_CANDIDATES:
         if not path.exists():
             continue
-
         try:
             checkpoint = torch.load(path, map_location=DEVICE)
 
@@ -143,13 +139,11 @@ def load_model():
             model.to(DEVICE)
             model.eval()
             return model, class_names, str(path)
-
         except Exception as e:
             print("MODEL LOAD ERROR:", str(e))
             continue
 
     return None, list(CLASS_NAMES_FALLBACK), "Model failed to load"
-
 
 model, class_names, model_info = load_model()
 
@@ -157,7 +151,6 @@ transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor()
 ])
-
 
 def prepare_uploaded_image(file_obj):
     img = Image.open(BytesIO(file_obj.getvalue()))
@@ -170,7 +163,6 @@ def prepare_uploaded_image(file_obj):
 
     processed = Image.open(buffer).convert("RGB")
     return processed
-
 
 def predict(image):
     if model is None:
@@ -194,7 +186,6 @@ def predict(image):
     except Exception:
         return "no_model", 0.0, {}
 
-
 def save_feedback_image(item, corrected_class):
     FEEDBACK_DIR.mkdir(exist_ok=True)
     target_dir = FEEDBACK_DIR / corrected_class
@@ -212,7 +203,6 @@ def save_feedback_image(item, corrected_class):
 
     item["image"].save(target_path)
     return str(target_path)
-
 
 def aggregate_results(results):
     usable = [r for r in results if r["prediction"] != "no_model"]
@@ -237,7 +227,6 @@ def aggregate_results(results):
 
     best = max(averages, key=averages.get)
     return best, averages[best], averages
-
 
 def make_summary_text(claim_id, vin, year, make, model_name, color, customer, notes, results, model_info, overall_pred, overall_conf):
     lines = []
@@ -269,7 +258,6 @@ def make_summary_text(claim_id, vin, year, make, model_name, color, customer, no
             )
         )
     return "\n".join(lines)
-
 
 def make_summary_html(claim_id, vin, year, make, model_name, color, customer, notes, results, model_info, overall_pred, overall_conf):
     row_html = []
@@ -341,12 +329,11 @@ def make_summary_html(claim_id, vin, year, make, model_name, color, customer, no
         rows="".join(row_html),
     )
 
-
 try:
     if Path("logo.png").exists():
         c1, c2, c3 = st.columns([1, 2, 1])
         with c2:
-            st.image("logo.png", width="stretch")
+            st.image("logo.png", width=420)
 except Exception:
     pass
 
@@ -371,7 +358,7 @@ with st.expander("AI Model Info"):
     st.write(model_info)
 
 st.subheader("Guided Panel Upload")
-st.caption("Each panel has 3 upload slots for phone-friendly beta testing.")
+st.caption("Each panel has 3 upload slots for phone-safe beta testing.")
 
 results = []
 
@@ -441,7 +428,7 @@ if results:
         c1, c2 = st.columns([1.5, 1.0])
 
         with c1:
-            st.image(item["image"], caption=item["filename"], width="stretch")
+            st.image(item["image"], caption=item["filename"], use_column_width=True)
 
         with c2:
             css_class = DISPLAY_CLASSES.get(item["prediction"], "assessment-yellow")
@@ -462,18 +449,20 @@ if results:
             st.markdown("**Correction / Retraining**")
             r1, r2, r3 = st.columns(3)
 
+            unique_key = item["panel"] + "_" + item["filename"] + "_" + item["instance_label"]
+
             with r1:
-                if st.button("Mark PDR", key="g_" + item["panel"] + "_" + item["filename"] + "_" + item["instance_label"]):
+                if st.button("Mark PDR", key="g_" + unique_key):
                     saved_to = save_feedback_image(item, "green_pdr")
                     st.success("Saved to " + saved_to)
 
             with r2:
-                if st.button("Mark Review", key="y_" + item["panel"] + "_" + item["filename"] + "_" + item["instance_label"]):
+                if st.button("Mark Review", key="y_" + unique_key):
                     saved_to = save_feedback_image(item, "yellow_review")
                     st.success("Saved to " + saved_to)
 
             with r3:
-                if st.button("Mark Conventional", key="r_" + item["panel"] + "_" + item["filename"] + "_" + item["instance_label"]):
+                if st.button("Mark Conventional", key="r_" + unique_key):
                     saved_to = save_feedback_image(item, "red_conventional")
                     st.success("Saved to " + saved_to)
 
@@ -492,18 +481,16 @@ if results:
         "Download Summary (.txt)",
         data=summary_text,
         file_name="hail_path_summary.txt",
-        mime="text/plain",
-        width="stretch"
+        mime="text/plain"
     )
 
     st.download_button(
         "Download Summary (.html)",
         data=summary_html,
         file_name="hail_path_summary.html",
-        mime="text/html",
-        width="stretch"
+        mime="text/html"
     )
 
-if st.button("Start Next Vehicle", width="stretch"):
+if st.button("Start Next Vehicle"):
     trigger_reset()
     st.rerun()
