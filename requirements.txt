@@ -1,4 +1,5 @@
-streamlit
+streamlit==1.44.1
 torch==2.2.2
 torchvision==0.17.2
-pillow
+pillow==10.4.0
+numpy==1.26.4
