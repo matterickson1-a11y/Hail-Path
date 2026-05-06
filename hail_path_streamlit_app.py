@@ -3,6 +3,7 @@ from pathlib import Path
 from datetime import datetime
 import html
 import base64
+import csv
 
 import streamlit as st
 import torch
@@ -10,11 +11,11 @@ import torch.nn as nn
 from PIL import Image, ImageOps
 from torchvision import models, transforms
 
-st.set_page_config(page_title="HAIL Path", layout="wide")
+st.set_page_config(page_title="HAIL Path Beta", layout="wide")
 
-# -------------------------
-# LIGHTWEIGHT STYLING
-# -------------------------
+BUILD_VERSION = "HAIL Path Beta Build 2026-04-20"
+SESSION_LOG_FILE = Path("hail_path_beta_session_log.csv")
+
 st.markdown(
     """
     <style>
@@ -22,20 +23,19 @@ st.markdown(
     footer {visibility: hidden;}
     header {visibility: hidden;}
     .block-container {padding-top: 1rem;}
-    .card {
-        padding: 10px;
-        border: 1px solid rgba(255,255,255,0.10);
+    .beta-box {
+        padding: 14px;
         border-radius: 10px;
-        margin-bottom: 12px;
+        background-color: rgba(255, 193, 7, 0.16);
+        border-left: 6px solid #ffc107;
+        margin: 12px 0;
+        font-weight: 600;
     }
     </style>
     """,
     unsafe_allow_html=True
 )
 
-# -------------------------
-# CONFIG
-# -------------------------
 DISPLAY_NAMES = {
     "green_pdr": "PDR Candidate",
     "yellow_review": "Review Recommended",
@@ -89,24 +89,58 @@ PANEL_WEIGHTS = {
     "right_quarter": 0.85,
 }
 
-# Lower than before for reliability on cloud/phone
 MAX_UPLOAD_IMAGE_SIZE = 640
 JPEG_QUALITY = 76
 DISPLAY_IMAGE_WIDTH = 420
 LOGO_WIDTH = 380
 
-# -------------------------
-# STATE
-# -------------------------
+if "authenticated" not in st.session_state:
+    st.session_state["authenticated"] = False
 if "reset_counter" not in st.session_state:
     st.session_state["reset_counter"] = 0
+
+def get_beta_password():
+    try:
+        return st.secrets.get("BETA_PASSWORD", "hailpathbeta")
+    except Exception:
+        return "hailpathbeta"
+
+def login_screen():
+    try:
+        if LOGO_PATH.exists():
+            c1, c2, c3 = st.columns([1, 2, 1])
+            with c2:
+                st.image("logo.png", width=LOGO_WIDTH)
+    except Exception:
+        pass
+
+    st.subheader("HAIL Path Beta Access")
+    st.markdown(
+        """
+        <div class='beta-box'>
+        AI-assisted hail triage beta. Authorized testers only.
+        Human review required. This is not a final claim decision tool.
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    entered = st.text_input("Beta Password", type="password")
+
+    if st.button("Enter Beta"):
+        if entered == get_beta_password():
+            st.session_state["authenticated"] = True
+            st.rerun()
+        else:
+            st.error("Invalid beta password.")
+
+if not st.session_state["authenticated"]:
+    login_screen()
+    st.stop()
 
 def trigger_reset():
     st.session_state["reset_counter"] += 1
 
-# -------------------------
-# MODEL
-# -------------------------
 def build_model(num_classes):
     model = models.resnet18(weights=None)
     model.fc = nn.Linear(model.fc.in_features, num_classes)
@@ -184,9 +218,6 @@ def predict(image):
     except Exception:
         return "no_model", 0.0, {}
 
-# -------------------------
-# HELPERS
-# -------------------------
 def save_feedback_image(item, corrected_class):
     FEEDBACK_DIR.mkdir(exist_ok=True)
     target_dir = FEEDBACK_DIR / corrected_class
@@ -238,11 +269,44 @@ def get_logo_base64():
     except Exception:
         return None
 
-def make_summary_text(claim_id, vin, year, make, model_name, color, customer, notes, results, model_info, overall_pred, overall_conf):
+def log_beta_session(row):
+    file_exists = SESSION_LOG_FILE.exists()
+    fieldnames = [
+        "timestamp",
+        "tester_name",
+        "tester_company",
+        "claim_id",
+        "vin",
+        "year",
+        "make",
+        "model",
+        "color",
+        "customer_name",
+        "overall_assessment",
+        "overall_confidence",
+        "photo_count",
+        "ai_helpful",
+        "tester_notes",
+        "build_version",
+        "model_info",
+    ]
+
+    with open(SESSION_LOG_FILE, "a", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        if not file_exists:
+            writer.writeheader()
+        writer.writerow(row)
+
+def make_summary_text(tester_name, tester_company, claim_id, vin, year, make, model_name, color, customer, notes, results, model_info, overall_pred, overall_conf, ai_helpful, tester_notes):
     lines = []
     lines.append("HAIL PATH TRIAGE SUMMARY")
     lines.append("")
+    lines.append("Beta Notice: AI-assisted preliminary triage only. Human review required.")
+    lines.append("Build: " + BUILD_VERSION)
+    lines.append("")
     lines.append("Timestamp: " + datetime.now().isoformat(timespec="seconds"))
+    lines.append("Tester Name: " + str(tester_name))
+    lines.append("Tester Company: " + str(tester_company))
     lines.append("Claim ID: " + str(claim_id))
     lines.append("VIN: " + str(vin))
     lines.append("Year: " + str(year))
@@ -255,6 +319,8 @@ def make_summary_text(claim_id, vin, year, make, model_name, color, customer, no
     lines.append("")
     lines.append("Overall Assessment: " + str(DISPLAY_NAMES.get(overall_pred, overall_pred)))
     lines.append("Overall Confidence: " + "{:.2%}".format(overall_conf))
+    lines.append("AI Helpful: " + str(ai_helpful))
+    lines.append("Tester Notes: " + str(tester_notes))
     lines.append("")
     lines.append("Panel Results:")
     for item in results:
@@ -269,7 +335,7 @@ def make_summary_text(claim_id, vin, year, make, model_name, color, customer, no
         )
     return "\n".join(lines)
 
-def make_summary_html(claim_id, vin, year, make, model_name, color, customer, notes, results, model_info, overall_pred, overall_conf):
+def make_summary_html(tester_name, tester_company, claim_id, vin, year, make, model_name, color, customer, notes, results, model_info, overall_pred, overall_conf, ai_helpful, tester_notes):
     row_html = []
     for item in results:
         row_html.append(
@@ -290,10 +356,18 @@ def make_summary_html(claim_id, vin, year, make, model_name, color, customer, no
     return """
     <html>
     <head>
-        <title>HAIL Path Summary</title>
+        <title>HAIL Path Beta Summary</title>
         <style>
             body {{ font-family: Arial, sans-serif; margin: 24px; color: #111; }}
             .header {{ text-align: center; margin-bottom: 20px; }}
+            .notice {{
+                padding: 12px;
+                background: #fff3cd;
+                border-left: 6px solid #ffc107;
+                border-radius: 8px;
+                margin-bottom: 16px;
+                font-weight: 600;
+            }}
             .summary-box {{
                 padding: 14px;
                 border-radius: 10px;
@@ -310,10 +384,17 @@ def make_summary_html(claim_id, vin, year, make, model_name, color, customer, no
     <body>
         <div class="header">
             {logo_html}
-            <h1>HAIL Path Triage Summary</h1>
+            <h1>HAIL Path Beta Triage Summary</h1>
         </div>
 
+        <div class="notice">
+            AI-assisted preliminary triage only. Human review required. Not a final claim decision.
+        </div>
+
+        <p><strong>Build:</strong> {build_version}</p>
         <p><strong>Timestamp:</strong> {timestamp}</p>
+        <p><strong>Tester:</strong> {tester_name}</p>
+        <p><strong>Company:</strong> {tester_company}</p>
         <p><strong>Claim ID:</strong> {claim_id}</p>
         <p><strong>VIN:</strong> {vin}</p>
         <p><strong>Year:</strong> {year}</p>
@@ -326,7 +407,9 @@ def make_summary_html(claim_id, vin, year, make, model_name, color, customer, no
 
         <div class="summary-box">
             Overall Assessment: {overall_pred}<br>
-            Overall Confidence: {overall_conf}
+            Overall Confidence: {overall_conf}<br>
+            AI Helpful: {ai_helpful}<br>
+            Tester Notes: {tester_notes}
         </div>
 
         <table>
@@ -347,7 +430,10 @@ def make_summary_html(claim_id, vin, year, make, model_name, color, customer, no
     </html>
     """.format(
         logo_html=logo_html,
+        build_version=html.escape(BUILD_VERSION),
         timestamp=html.escape(datetime.now().isoformat(timespec="seconds")),
+        tester_name=html.escape(str(tester_name)),
+        tester_company=html.escape(str(tester_company)),
         claim_id=html.escape(str(claim_id)),
         vin=html.escape(str(vin)),
         year=html.escape(str(year)),
@@ -359,6 +445,8 @@ def make_summary_html(claim_id, vin, year, make, model_name, color, customer, no
         model_info=html.escape(str(model_info)),
         overall_pred=html.escape(DISPLAY_NAMES.get(overall_pred, overall_pred)),
         overall_conf="{:.2%}".format(overall_conf),
+        ai_helpful=html.escape(str(ai_helpful)),
+        tester_notes=html.escape(str(tester_notes)),
         rows="".join(row_html),
     )
 
@@ -374,9 +462,6 @@ def render_assessment_box(prediction, confidence, label_prefix):
     else:
         st.info(f"{label_prefix}: {pretty} | Confidence: {confidence:.2%}")
 
-# -------------------------
-# HEADER
-# -------------------------
 try:
     if LOGO_PATH.exists():
         c1, c2, c3 = st.columns([1, 2, 1])
@@ -387,9 +472,25 @@ except Exception:
 
 st.caption("AI-assisted hail triage beta — human review required")
 
-# -------------------------
-# INTAKE
-# -------------------------
+st.markdown(
+    """
+    <div class='beta-box'>
+    HAIL Path Beta: AI-assisted preliminary hail triage only. 
+    Human review is required. This tool is not a final claim decision or estimate.
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+st.write("**Build:**", BUILD_VERSION)
+st.write("**Model:**", model_info)
+
+st.subheader("Tester Information")
+
+tc1, tc2 = st.columns(2)
+tester_name = tc1.text_input("Tester Name")
+tester_company = tc2.text_input("Company")
+
 st.subheader("Vehicle / Claim Intake")
 
 col1, col2 = st.columns(2)
@@ -405,12 +506,6 @@ color = st.text_input("Color")
 customer = st.text_input("Customer Name")
 notes = st.text_area("Notes", height=100)
 
-with st.expander("AI Model Info"):
-    st.write(model_info)
-
-# -------------------------
-# UPLOADS
-# -------------------------
 st.subheader("Guided Panel Upload")
 st.caption("Each panel opens into 3 compact photo slots for cleaner phone testing.")
 
@@ -450,9 +545,6 @@ for panel_key, panel_label in PANEL_CONFIG:
                     except Exception:
                         st.warning(f"Could not process {panel_label} Photo {slot_number}")
 
-# -------------------------
-# RESULTS
-# -------------------------
 if results:
     overall_pred, overall_conf, overall_probs = aggregate_results(results)
 
@@ -460,10 +552,6 @@ if results:
 
     if overall_pred is not None:
         render_assessment_box(overall_pred, overall_conf, "Overall Assessment")
-
-        with st.expander("Overall Probability Breakdown"):
-            for name in class_names:
-                st.write(DISPLAY_NAMES.get(name, name) + ": " + "{:.2%}".format(overall_probs.get(name, 0.0)))
     else:
         st.warning("AI model did not load on this app instance. The UI is still available.")
 
@@ -505,26 +593,60 @@ if results:
 
         st.markdown("---")
 
+    st.subheader("Beta Feedback")
+
+    ai_helpful = st.selectbox(
+        "Was the AI result useful?",
+        ["Not answered", "Yes", "Somewhat", "No"]
+    )
+
+    tester_notes = st.text_area("Tester Feedback / Notes", height=120)
+
+    if st.button("Save Beta Session Log"):
+        log_beta_session({
+            "timestamp": datetime.now().isoformat(timespec="seconds"),
+            "tester_name": tester_name,
+            "tester_company": tester_company,
+            "claim_id": vehicle_claim_id,
+            "vin": vin,
+            "year": year,
+            "make": make,
+            "model": model_name,
+            "color": color,
+            "customer_name": customer,
+            "overall_assessment": DISPLAY_NAMES.get(overall_pred, overall_pred),
+            "overall_confidence": "{:.2%}".format(overall_conf),
+            "photo_count": len(results),
+            "ai_helpful": ai_helpful,
+            "tester_notes": tester_notes,
+            "build_version": BUILD_VERSION,
+            "model_info": model_info,
+        })
+        st.success("Beta session logged.")
+
     st.subheader("Summary / Export")
 
     summary_text = make_summary_text(
-        vehicle_claim_id, vin, year, make, model_name, color, customer, notes, results, model_info, overall_pred, overall_conf
+        tester_name, tester_company, vehicle_claim_id, vin, year, make, model_name, color, customer,
+        notes, results, model_info, overall_pred, overall_conf, ai_helpful, tester_notes
     )
+
     summary_html = make_summary_html(
-        vehicle_claim_id, vin, year, make, model_name, color, customer, notes, results, model_info, overall_pred, overall_conf
+        tester_name, tester_company, vehicle_claim_id, vin, year, make, model_name, color, customer,
+        notes, results, model_info, overall_pred, overall_conf, ai_helpful, tester_notes
     )
 
     st.download_button(
         "Download Summary (.txt)",
         data=summary_text,
-        file_name="hail_path_summary.txt",
+        file_name="hail_path_beta_summary.txt",
         mime="text/plain"
     )
 
     st.download_button(
-        "Download Summary (.html)",
+        "Download Branded Summary (.html)",
         data=summary_html,
-        file_name="hail_path_summary.html",
+        file_name="hail_path_beta_summary.html",
         mime="text/html"
     )
 
